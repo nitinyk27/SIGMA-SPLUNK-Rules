@@ -1,0 +1,1715 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Splunk 95 Sigma Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: ThreatLens app shell. Left sidebar nav, sticky top bar, one view at a time (overview, Sigma map, detections, ATT&CK coverage, Sigma rules, analytics, reports, settings, help). */
+:root {
+  --bg: #f4f7fc; --panel: #ffffff; --fg: #111a33; --muted: #5a6784; --line: #e3e9f3; --grid: #e8edf6; --track: #eef3fb;
+  --accent: #1f6fe5; --accent-2: #3d8bf2; --accent-soft: #e7f0fd; --code-bg: #f3f6fb; --node: #b9cdef;
+  --violet: #7b4fe0; --violet-soft: #f0eafd; --teal: #14a37f; --teal-soft: #e2f6ef; --orange: #f0661f; --orange-soft: #fdece2;
+  --strong: #1fa45a; --strong-bg: #e2f5ea; --mod: #f2a516; --mod-t: #9a6400; --mod-bg: #fdf2dc; --weak: #e5383b; --weak-bg: #fce5e5;
+  --shadow: 0 1px 2px rgba(17, 26, 51, .04), 0 4px 16px rgba(17, 26, 51, .05);
+  --syn-cmd: #1f5fd1; --syn-kw: #7b3fd6; --syn-str: #0f8a5f; --syn-mac: #c2410c; --syn-fn: #b0287a; --syn-field: #0b6e8f; --syn-num: #a15c00; --syn-pipe: #d6245a;
+  --f-ui: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d1220; --panel: #151c2e; --fg: #e6ebf5; --muted: #95a1bb; --line: #243049; --grid: #222c42; --track: #1b2438;
+  --accent: #5b9bff; --accent-2: #4c8ef5; --accent-soft: #1b2b4b; --code-bg: #0f1526; --node: #2f4570;
+  --violet: #a98cf5; --violet-soft: #271f45; --teal: #45d0a6; --teal-soft: #15352d; --orange: #ff8c50; --orange-soft: #3a2316;
+  --strong: #3fcf7d; --strong-bg: #15331f; --mod: #f5b93e; --mod-t: #f5b93e; --mod-bg: #3a2c10; --weak: #ff6b6e; --weak-bg: #3d1a1c;
+  --syn-cmd: #6ea8ff; --syn-kw: #b99cff; --syn-str: #4fd6a3; --syn-mac: #ff9d5c; --syn-fn: #f27cc4; --syn-field: #5fc8e6; --syn-num: #f5bd4f; --syn-pipe: #ff6b8e;
+  --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0d1220; --panel: #151c2e; --fg: #e6ebf5; --muted: #95a1bb; --line: #243049; --grid: #222c42; --track: #1b2438;
+  --accent: #5b9bff; --accent-2: #4c8ef5; --accent-soft: #1b2b4b; --code-bg: #0f1526; --node: #2f4570;
+  --violet: #a98cf5; --violet-soft: #271f45; --teal: #45d0a6; --teal-soft: #15352d; --orange: #ff8c50; --orange-soft: #3a2316;
+  --strong: #3fcf7d; --strong-bg: #15331f; --mod: #f5b93e; --mod-t: #f5b93e; --mod-bg: #3a2c10; --weak: #ff6b6e; --weak-bg: #3d1a1c;
+  --syn-cmd: #6ea8ff; --syn-kw: #b99cff; --syn-str: #4fd6a3; --syn-mac: #ff9d5c; --syn-fn: #f27cc4; --syn-field: #5fc8e6; --syn-num: #f5bd4f; --syn-pipe: #ff6b8e;
+  --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark }
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+html { background: var(--bg) }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 var(--f-ui); }
+a { color: var(--accent) }
+.wrap { max-width: 1200px; margin: 0 auto; padding-inline: 16px; padding-block: 18px 64px; display: grid; gap: 20px; position: relative }
+
+/* hero */
+.hero { position: relative; padding-block: 4px 8px }
+#net { position: absolute; top: -18px; right: 0; width: min(46%, 520px); height: 190px; pointer-events: none }
+.brand { display: flex; align-items: center; gap: 12px; position: relative }
+.brand b { font-size: 1.15rem; font-weight: 700; letter-spacing: -.01em }
+.brand .sep { width: 1px; height: 18px; background: var(--line) }
+.brand .tag { font-size: .72rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); font-weight: 600 }
+h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); font-weight: 800; line-height: 1.1; margin: 22px 0 10px; letter-spacing: -.02em; text-wrap: balance; position: relative }
+.lede { color: var(--muted); max-width: 74ch; margin: 0; font-size: 1.02rem; position: relative }
+
+/* stat cards */
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; box-shadow: var(--shadow); display: grid; grid-template-columns: 52px 1fr; gap: 16px; min-width: 0; position: relative; overflow: hidden }
+.ico { width: 52px; height: 52px; border-radius: 12px; display: grid; place-items: center }
+.ico svg { width: 24px; height: 24px }
+.ico.b { background: var(--accent-soft); color: var(--accent) } .ico.v { background: var(--violet-soft); color: var(--violet) }
+.ico.t { background: var(--teal-soft); color: var(--teal) } .ico.o { background: var(--orange-soft); color: var(--orange) }
+.stat .k { font-size: .74rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); font-weight: 700 }
+.stat .v { font-size: 2rem; font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums }
+.stat .s { font-size: .84rem; color: var(--muted); position: relative }
+.spark { position: absolute; left: 0; bottom: 0; width: 45%; height: 46px; opacity: .55 }
+.spark.r { left: auto; right: 12px; width: 90px; bottom: 12px; opacity: .45 }
+.covbar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 12px; gap: 2px }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .88rem; color: var(--muted); margin-top: 10px }
+.legend b { font-variant-numeric: tabular-nums }
+
+/* tactic chart */
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 20px; min-width: 0 }
+.chead { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; justify-content: space-between }
+.chead .ttl { display: flex; gap: 14px; align-items: center }
+.chead h2 { margin: 0; font-size: 1.35rem; font-weight: 800; letter-spacing: -.01em }
+.chead p { margin: 2px 0 0; color: var(--muted); font-size: .9rem }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.tab { border: 1px solid var(--line); background: var(--track); color: var(--fg); border-radius: 999px; padding: 7px 16px; font-size: .84rem; font-weight: 500 }
+.tab.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 700 }
+.tab.more { appearance: none; max-width: 200px; padding-right: 30px; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 16px) 55%, calc(100% - 11px) 55%; background-size: 5px 5px; background-repeat: no-repeat; font-family: inherit; cursor: pointer }
+.chart { margin-top: 18px; display: grid; grid-template-columns: minmax(120px, 190px) 1fr; column-gap: 16px; font-size: .9rem }
+.chart .hd { font-size: .8rem; color: var(--muted); font-weight: 600; height: 22px; line-height: 16px }
+.axis { position: relative; height: 22px; font-size: .78rem; color: var(--muted); font-variant-numeric: tabular-nums }
+.axis span { position: absolute; transform: translateX(-50%) }
+.plot { position: relative }
+.gl { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--grid) }
+.tl { padding: 3px 0; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 4px }
+.tl.on { color: var(--accent); font-weight: 700 }
+.br { position: relative; height: 27px; display: flex; align-items: center; cursor: pointer }
+.br .trk { position: absolute; inset: 7px 0; background: var(--track); border-radius: 3px }
+.br .fill { position: relative; height: 13px; border-radius: 3px; background: var(--accent-2); transition: width .5s ease }
+.br .n { white-space: nowrap; position: relative; margin-left: 8px; font-size: .78rem; font-weight: 700; font-variant-numeric: tabular-nums }
+.br.dim .fill { opacity: .35 } .br.on .fill { background: var(--accent) }
+
+/* filters + list */
+.filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 3; background: var(--bg); padding-block: 10px; border-bottom: 1px solid var(--line) }
+.filters input, .filters select { font: inherit; font-size: .9rem; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; min-width: 0 }
+.filters input { flex: 1 1 280px }
+.filters .count { color: var(--muted); font-size: .85rem; margin-left: auto; font-variant-numeric: tabular-nums }
+button { font: inherit; cursor: pointer }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.list { display: grid; gap: 10px }
+.rule { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; min-width: 0; box-shadow: var(--shadow) }
+.rule > summary { list-style: none; cursor: pointer; padding: 14px 18px; display: grid; grid-template-columns: 38px 1fr auto; gap: 12px; align-items: start }
+.rule > summary::-webkit-details-marker { display: none }
+.num { font: 500 .8rem var(--f-mono); color: var(--muted); padding-top: 3px; font-variant-numeric: tabular-nums }
+.title { font-weight: 700; min-width: 0 }
+.sub { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px }
+.chip { font: 500 .72rem var(--f-mono); padding: 2px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; text-decoration: none }
+.chip.plain { background: var(--code-bg); color: var(--muted); border: 1px solid var(--line) }
+.pill { font-size: .72rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; white-space: nowrap }
+.pill.Full { color: var(--strong); background: var(--strong-bg) } .pill.Partial { color: var(--mod-t); background: var(--mod-bg) } .pill.Strong { color: var(--strong); background: var(--strong-bg) } .pill.Moderate { color: var(--mod-t); background: var(--mod-bg) } .pill.Weak { color: var(--weak); background: var(--weak-bg) } .pill.None { color: var(--weak); background: var(--weak-bg) }
+.arrow { font-size: .82rem; color: var(--muted); margin-top: 5px; font-weight: 500 }
+.sid { font-family: var(--f-mono); color: var(--fg); user-select: all; font-size: .78rem }
+.body { padding: 0 18px 20px 68px; display: grid; gap: 18px; min-width: 0 }
+.body h3 { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 0 0 6px; font-weight: 700 }
+.body p { margin: 0; max-width: 80ch }
+.mitre { display: grid; gap: 6px }
+.mt { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; font-size: .9rem }
+.mt .tac { color: var(--muted); font-size: .8rem }
+.codebox { position: relative; min-width: 0 }
+pre { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; font: .78rem/1.5 var(--f-mono); white-space: pre-wrap; word-break: break-word; max-height: 340px }
+.spl .c { color: var(--syn-cmd); font-weight: 600 } .spl .k { color: var(--syn-kw); font-weight: 600 } .spl .s { color: var(--syn-str) }
+.spl .m { color: var(--syn-mac) } .spl .f { color: var(--syn-fn) } .spl .d { color: var(--syn-field) } .spl .n { color: var(--syn-num) }
+.spl .p { color: var(--syn-pipe); font-weight: 700 } .spl .cm { color: var(--muted); font-style: italic }
+.rsverd { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px }
+.rv { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); display: grid; gap: 4px; text-align: left; font: inherit; color: var(--fg); cursor: pointer; border-top: 4px solid var(--c) }
+.rv:hover, .rv.on { outline: 2px solid var(--c); outline-offset: -1px }
+.rv .k { font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700 }
+.rv .v { font-size: 1.8rem; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums }
+.rv .v small { font-size: .85rem; color: var(--muted); font-weight: 600; margin-left: 6px }
+.rv .s { font-size: .8rem; color: var(--muted) }
+.rsfind { margin: 14px 0 0; padding-left: 22px; display: grid; gap: 10px; font-size: .92rem; line-height: 1.55 }
+.rsfind b { font-variant-numeric: tabular-nums }
+.rs2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px }
+@media (max-width: 1000px) { .rs2 { grid-template-columns: 1fr } }
+.rsheat { display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); gap: 3px; margin-top: 16px; font-size: .82rem }
+.rsheat .hx { color: var(--muted); font-weight: 700; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; padding: 6px; display: flex; align-items: center; justify-content: center; text-align: center }
+.rsheat .hy { justify-content: flex-end; text-align: right }
+.rsheat button { border: 0; border-radius: 6px; min-height: 64px; font: inherit; color: var(--fg); cursor: pointer; display: grid; place-content: center; gap: 2px; padding: 6px }
+.rsheat button b { font-size: 1.3rem; font-variant-numeric: tabular-nums }
+.rsheat button span { font-size: .72rem; color: var(--fg); opacity: .8 }
+.rsheat button:hover, .rsheat button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px }
+.rsagree td.num, .rsagree th { text-align: center }
+.rsagree td.dis { background: var(--mod-bg) }
+.rsagree td.agr { background: var(--strong-bg) }
+.lab.t { color: var(--teal); background: var(--teal-soft) } .lab.v { color: var(--violet); background: var(--violet-soft) } .lab.n { color: var(--muted); background: var(--track) }
+.rsverdict { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; border: 1px solid var(--line); border-left: 4px solid var(--c); border-radius: 10px; padding: 10px 14px; font-size: .88rem }
+.rsbox { display: grid; gap: 12px }
+.rsgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px }
+@media (max-width: 900px) { .rsgrid { grid-template-columns: 1fr } }
+.chk { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: .82rem }
+.chk li { display: grid; grid-template-columns: 18px 1fr; gap: 6px; align-items: baseline }
+.chk .ok { color: var(--strong); font-weight: 800 } .chk .no { color: var(--weak); font-weight: 800 } .chk .nt { color: var(--muted); font-weight: 800 }
+.lt { border: 1px dashed var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 8px; font-size: .84rem; min-width: 0 }
+.lt .ds { font: .74rem var(--f-mono); overflow-wrap: anywhere }
+.ltstats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 14px }
+.ltstats div { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px }
+.ltstats b { display: block; font-size: 1.4rem; font-variant-numeric: tabular-nums }
+.ltstats span { font-size: .78rem; color: var(--muted) }
+.btn { font: inherit; font-size: .86rem; font-weight: 700; color: var(--panel); background: var(--accent); border: 0; border-radius: 10px; padding: 9px 14px; cursor: pointer }
+.btn.ghost { color: var(--fg); background: var(--panel); border: 1px solid var(--line) }
+.dirbox { display: grid; gap: 6px; font-size: .8rem }
+.dirbox .lab { justify-self: start }
+.dirrow { display: grid; grid-template-columns: 170px 1fr; gap: 8px; align-items: center }
+@media (max-width: 560px) { .dirrow { grid-template-columns: 1fr } }
+.dirlist { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-top: 12px }
+.dirlist button { display: grid; grid-template-columns: 12px 1fr auto auto; gap: 8px; align-items: center; border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 10px; padding: 10px 12px; font: inherit; font-size: .86rem; text-align: left; cursor: pointer }
+.dirlist button:hover { outline: 2px solid var(--accent); outline-offset: -1px }
+.dirlist i { width: 12px; height: 12px; border-radius: 3px }
+.dirlist b { font-variant-numeric: tabular-nums }
+.copy { position: absolute; top: 8px; right: 8px; font-size: .75rem; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px }
+.sig { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 5px; min-width: 0 }
+.sig .top { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between }
+.sig .t { font-weight: 700 }
+.sig .meta { font: .75rem var(--f-mono); color: var(--muted); display: flex; flex-wrap: wrap; gap: 12px }
+.sig .d { font-size: .86rem; color: var(--muted) }
+.shared { display: flex; flex-wrap: wrap; gap: 4px; align-items: center }
+.sigs { display: grid; gap: 8px }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px }
+.small { font-size: .86rem; color: var(--muted) }
+/* assessments */
+.asum { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-top: 16px }
+.asum .dim-k { font-size: .85rem; font-weight: 700; display: flex; justify-content: space-between; gap: 8px }
+.dist { display: flex; height: 12px; border-radius: 6px; overflow: hidden; gap: 2px; margin: 8px 0 6px }
+.dist span { display: block; min-width: 3px }
+.dlg { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .78rem; color: var(--muted) }
+.dlg i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: -1px }
+.assess { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; min-width: 0 }
+.ac { border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 8px; align-content: start; min-width: 0 }
+.ac .hdr { display: flex; justify-content: space-between; align-items: center; gap: 8px }
+.ac .nm { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; font-weight: 800; color: var(--muted) }
+.ac .sc { font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1 }
+.ac .sc small { font-size: .8rem; color: var(--muted); font-weight: 600 }
+.meter { height: 6px; background: var(--track); border-radius: 3px; overflow: hidden }
+.meter span { display: block; height: 100% }
+.ac ul { margin: 0; padding-left: 18px; font-size: .82rem; color: var(--muted); display: grid; gap: 3px }
+.ac .sum { font-size: .84rem }
+.lab { font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; white-space: nowrap }
+.lab.g { color: var(--strong); background: var(--strong-bg) } .lab.a { color: var(--mod-t); background: var(--mod-bg) } .lab.r { color: var(--weak); background: var(--weak-bg) }
+.covs { display: grid; gap: 5px; font-size: .8rem }
+.covs .row { display: grid; grid-template-columns: 1fr 44px; gap: 8px; align-items: center }
+.covs .row b { text-align: right; font-variant-numeric: tabular-nums }
+.difs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 8px }
+.difs h5 { margin: 0 0 6px; font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted) }
+.mini { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px }
+@media (max-width: 900px) { .assess, .difs { grid-template-columns: 1fr } }
+/* ---------- app shell ---------- */
+.app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh }
+.side { position: sticky; top: env(safe-area-inset-top, 0px); height: 100vh; overflow-y: auto; background: var(--panel); border-right: 1px solid var(--line); padding: 18px 14px; display: flex; flex-direction: column; gap: 22px }
+.logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); padding: 2px 8px }
+.logo b { display: block; font-size: 1.15rem; font-weight: 800; letter-spacing: -.01em; line-height: 1.1 }
+.logo small { display: block; font-size: .62rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); font-weight: 600 }
+.nav { display: flex; flex-direction: column; gap: 4px }
+.nv { position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: var(--fg); text-decoration: none; font-size: .92rem; font-weight: 500 }
+.nv svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; color: var(--muted) }
+.nv:hover { background: var(--track) }
+.nv.on { background: var(--accent-soft); color: var(--accent); font-weight: 700 }
+.nv.on svg { color: var(--accent) }
+.nv.on::before { content: ""; position: absolute; left: -14px; top: 8px; bottom: 8px; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent) }
+.navsep { height: 1px; background: var(--line); margin: 12px 8px }
+.main { min-width: 0; display: flex; flex-direction: column }
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; display: flex; align-items: center; gap: 12px; padding: 10px 24px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line) }
+.gsearch, .fsearch { display: flex; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; min-width: 0 }
+.gsearch { flex: 0 1 540px; margin-right: auto }
+.gsearch svg, .fsearch svg, .tbchip svg, .grpsel svg { width: 18px; height: 18px; flex: none; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.gsearch input, .fsearch input { border: 0; background: transparent; color: var(--fg); font: inherit; font-size: .9rem; padding: 10px 0; width: 100%; min-width: 0; outline: none }
+.gsearch:focus-within, .fsearch:focus-within { outline: 2px solid var(--accent); outline-offset: 1px }
+.tbchip { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 8px 12px; font-size: .84rem; color: var(--muted); white-space: nowrap }
+.tbchip b { color: var(--fg) }
+.tbbtn { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); flex: none }
+.tbbtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round }
+.main .wrap { max-width: 1320px; width: 100%; padding-inline: 24px; padding-block: 24px 64px }
+.main .wrap:has(> .view[data-view="coverage"]:not([hidden])) { max-width: none }
+.main { overflow-x: clip }
+.view > *, .tcards > *, .mtxcard { min-width: 0; max-width: 100% }
+.tcards { grid-template-columns: minmax(0, 1fr) }
+.view { display: grid; gap: 20px; min-width: 0 }
+.vh h1 { margin: 0 0 6px; font-size: clamp(1.7rem, 3vw, 2.3rem) }
+.vh p { margin: 0; color: var(--muted) }
+.hero h1 { margin-top: 0 }
+.filters { top: calc(env(safe-area-inset-top, 0px) + 59px) }
+.toolrow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center }
+.toolrow .fsearch { flex: 0 1 390px }
+.toolrow select, .grpsel { font: inherit; font-size: .9rem; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; min-width: 0 }
+.toolrow > select { min-width: 200px }
+.grpsel { display: inline-flex; align-items: center; gap: 8px; padding: 0 0 0 12px }
+.grpsel select { border: 0; background: transparent; color: var(--fg); font: inherit; font-size: .9rem; padding: 9px 12px 9px 0 }
+.grow { flex: 1 }
+.toolrow .count { margin-left: auto; color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums }
+.card.flat { padding: 0; overflow: hidden }
+
+/* coverage tiles */
+.cvtiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px }
+.cvt { display: flex; align-items: center; gap: 16px; text-align: left; border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px; color: var(--fg); box-shadow: var(--shadow) }
+.cvt b { display: block; font-size: 1.45rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums }
+.cvt span span { font-size: .88rem; color: var(--muted) }
+.cvi { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; flex: none }
+.cvi svg { width: 22px; height: 22px; stroke-width: 2.6 }
+.cvt.Full { background: linear-gradient(90deg, var(--strong-bg), var(--panel)) } .cvt.Full .cvi { background: var(--strong); color: var(--panel) }
+.cvt.Partial { background: linear-gradient(90deg, var(--mod-bg), var(--panel)) } .cvt.Partial .cvi { background: var(--mod); color: var(--panel) }
+.cvt.None { background: linear-gradient(90deg, var(--weak-bg), var(--panel)) } .cvt.None .cvi { background: var(--weak-bg); color: var(--weak); border: 1px solid var(--weak) }
+.cvt.on { outline: 2px solid var(--accent); outline-offset: 2px }
+
+/* tactic cards */
+.tcards { display: grid; gap: 14px }
+.tcard { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 14px 18px 16px }
+.tch { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px }
+.tch h3 { margin: 0; font-size: 1.1rem; font-weight: 800 }
+.ico.sm { width: 38px; height: 38px; border-radius: 10px } .ico.sm svg { width: 22px; height: 22px }
+.prog { display: block; width: 170px; height: 8px; border-radius: 4px; background: var(--track); overflow: hidden }
+.prog span { display: block; height: 100%; background: var(--strong); border-radius: 4px }
+.coll { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); color: var(--fg) }
+.coll svg { width: 16px; height: 16px }
+.tcard .chips { margin-top: 12px; gap: 8px }
+.tq { border-radius: 6px; padding: 5px 10px; font-size: .8rem; gap: 8px }
+.tcard .tq .id { font: 700 .76rem var(--f-ui) } .tcard .tq .nm { max-width: 240px } .tcard .tq b { font-size: .76rem }
+.tq:hover { filter: brightness(.97) }
+
+/* drawer */
+.scrim { position: fixed; inset: 0; background: rgba(8, 14, 30, .35); z-index: 20 }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100%); z-index: 21; background: var(--panel); border-left: 1px solid var(--line); box-shadow: -12px 0 32px rgba(8, 14, 30, .18); overflow-y: auto; padding: calc(env(safe-area-inset-top, 0px) + 20px) 20px calc(env(safe-area-inset-bottom, 0px) + 24px); display: flex; flex-direction: column; gap: 14px }
+.drawer[hidden] { display: none !important }
+.dhead { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start }
+.dhead h2 { margin: 2px 0 0; font-size: 1.2rem; line-height: 1.3 }
+.dstats { display: flex; flex-wrap: wrap; gap: 8px }
+.drawer .fchip { align-self: flex-start }
+
+/* tables */
+.tblwrap { overflow-x: auto }
+.tbl { width: 100%; border-collapse: collapse; font-size: .88rem }
+.tbl th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; padding: 12px 14px; border-bottom: 1px solid var(--line); background: var(--track); white-space: nowrap }
+.tbl td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top }
+.tbl tbody tr[data-rule], .tbl tbody tr[data-sig], .tbl tbody tr[data-tech] { cursor: pointer }
+.tbl tbody tr:hover td { background: var(--track) }
+.tbl tr.hl-full td { background: var(--strong-bg) }
+.tbl tr.hl-full td:first-child { box-shadow: inset 3px 0 0 var(--strong) }
+.tbl td.num { font-variant-numeric: tabular-nums; white-space: nowrap }
+.tbl .mono { font: .78rem var(--f-mono); color: var(--muted) }
+.tbl .sub { margin-top: 0 }
+.tbl .sub-row td { background: var(--code-bg) }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; font-size: .86rem; text-align: left; cursor: pointer; text-decoration: underline; text-underline-offset: 2px }
+.minibar { display: inline-block; width: 80px; height: 7px; border-radius: 4px; background: var(--track); overflow: hidden; margin-right: 8px; vertical-align: middle }
+.minibar span { display: block; height: 100%; background: var(--strong) }
+.dombars { display: grid; gap: 14px; margin-top: 16px }
+.dbr { display: grid; grid-template-columns: 150px 1fr 260px; gap: 14px; align-items: center }
+.dbr .dn { font-weight: 700 } .dbr .dn .small { display: block; font-weight: 500 }
+.dist.tall { height: 16px; margin: 0 }
+.setgrid { display: grid; grid-template-columns: 1fr auto; gap: 18px 24px; align-items: center }
+.setgrid h2 { margin: 0; font-size: 1rem }
+.setgrid p { margin: 2px 0 0 }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden }
+.seg button { border: 0; background: var(--panel); color: var(--fg); padding: 8px 16px; font-size: .88rem }
+.seg button + button { border-left: 1px solid var(--line) }
+.seg button.on { background: var(--accent); color: var(--panel); font-weight: 700 }
+.method p { max-width: 92ch }
+
+@media (max-width: 1000px) {
+  .app { grid-template-columns: 1fr }
+  .side { position: static; height: auto; flex-direction: row; align-items: center; gap: 12px; padding: 10px 16px; border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto }
+  .nav { flex-direction: row; gap: 2px }
+  .nv { white-space: nowrap; padding: 8px 10px } .nv.on::before { display: none } .navsep { display: none }
+  .logo small { display: none }
+  .topbar { padding: 10px 16px } .main .wrap { padding-inline: 16px }
+  .tbchip span { display: none }
+  .cvtiles { grid-template-columns: 1fr }
+  .dbr { grid-template-columns: 1fr }
+  .prog { width: 110px }
+}
+@media (max-width: 560px) { .tbchip { display: none } .toolrow > select { min-width: 0; flex: 1 1 160px } }
+
+/* ---------- ATT&CK matrix (Navigator style) ---------- */
+.mtxcard { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden }
+.mtxbar { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: .82rem; color: var(--muted) }
+.mtxbar i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: -2px; border: 1px solid var(--line) }
+.mtxbar .grow { flex: 1 }
+.mtxbar button { font: inherit; font-size: .8rem; border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 8px; padding: 5px 10px }
+.mtxwrap { overflow: auto; max-height: calc(100vh - 150px) }
+.mtx { display: grid; grid-auto-flow: column; grid-auto-columns: 146px; gap: 6px; padding: 0 10px 14px; width: max-content }
+.mcol { display: flex; flex-direction: column; gap: 3px; min-width: 0 }
+.mhead { position: sticky; top: 0; z-index: 2; background: var(--panel); text-align: center; padding: 12px 4px 8px; border-bottom: 1px solid var(--line); margin-bottom: 4px }
+.mhead b { display: block; color: var(--accent); font-size: .98rem; line-height: 1.1; font-weight: 700; min-height: 2.2em; display: grid; place-items: end center }
+.mhead span { display: block; font-size: .76rem; color: var(--muted); margin-top: 4px }
+.mc { display: flex; border: 1px solid var(--line); background: var(--panel); min-height: 30px }
+.mc .mcb { flex: 1; min-width: 0; text-align: left; border: 0; background: transparent; color: var(--fg); padding: 4px 5px; font: 500 .74rem/1.2 var(--f-ui); display: grid; gap: 2px; cursor: pointer }
+.mc .mcb .sc { font-size: .66rem; color: var(--muted) }
+.mc .mcb .fr { font-size: .64rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: .02em }
+.mc .mexp { width: 12px; flex: none; border: 0; border-left: 1px solid var(--line); background: var(--track); color: var(--muted); font-size: .6rem; padding: 0; cursor: pointer; display: grid; place-items: center }
+.mc .mexp::before { content: ""; width: 3px; height: 12px; border-left: 1px solid currentColor; border-right: 1px solid currentColor }
+.mc .mexp[aria-expanded="true"] { background: var(--accent-soft); color: var(--accent) }
+.mc.Full { background: var(--strong-bg); border-color: color-mix(in srgb, var(--strong) 55%, var(--line)) } .mc.Full .fr { color: var(--strong) }
+.mc.Partial { background: var(--mod-bg); border-color: color-mix(in srgb, var(--mod) 55%, var(--line)) } .mc.Partial .fr { color: var(--mod-t) }
+.mc.None { background: var(--weak-bg); border-color: color-mix(in srgb, var(--weak) 45%, var(--line)) } .mc.None .fr { color: var(--weak) }
+.mc.Full { box-shadow: inset 3px 0 0 var(--strong) }
+.mc.dim { opacity: .28 }
+.mc.act { outline: 2px solid var(--violet); outline-offset: -1px }
+.mc.sel { outline: 2px solid var(--accent); outline-offset: -1px }
+.msubs { display: flex; flex-direction: column; gap: 3px; margin: 0 0 4px 10px; padding-left: 5px; border-left: 2px solid var(--line) }
+.msubs .mc { min-height: 26px } .msubs .mcb { font-size: .7rem }
+.actsum { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--violet-soft); font-size: .86rem }
+.actsum b { font-variant-numeric: tabular-nums }
+/* threat intel */
+.ti { display: flex; flex-wrap: wrap; gap: 6px; align-items: center }
+.chip.cve { background: var(--orange-soft); color: var(--orange) }
+.chip.apt { background: var(--violet-soft); color: var(--violet) }
+.chip.story { background: var(--code-bg); color: var(--muted); border: 1px solid var(--line); font-family: var(--f-ui) }
+/* full-coverage highlight */
+.rule.hl-full { border-color: var(--strong); background: linear-gradient(90deg, var(--strong-bg), var(--panel) 38%); box-shadow: 0 0 0 1px var(--strong), var(--shadow) }
+.fullmark { font-size: .7rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--strong) }
+/* technique map */
+.tmtools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.tmtools select, .tmtools input { font: inherit; font-size: .86rem; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 7px 11px; min-width: 0 }
+.tmleg { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .8rem; color: var(--muted); margin-top: 14px }
+.tmleg i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -2px }
+.tmap { display: grid; gap: 14px; margin-top: 14px }
+.tmrow { display: grid; grid-template-columns: 190px 1fr; gap: 12px; align-items: start }
+.tmrow .tn { font-weight: 700; font-size: .88rem } .tmrow .tn .small { display: block; font-weight: 500; font-size: .76rem }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0 }
+.tq { display: inline-flex; gap: 6px; align-items: baseline; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; font-size: .76rem; background: var(--panel); color: var(--fg); max-width: 100%; text-align: left }
+.tq .id { font: 600 .72rem var(--f-mono) } .tq .nm { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.tq b { font-variant-numeric: tabular-nums; font-size: .72rem }
+.tq.Full { background: var(--strong-bg); border-color: var(--strong) } .tq.Full .id, .tq.Full b { color: var(--strong) }
+.tq.Partial { background: var(--mod-bg); border-color: var(--mod) } .tq.Partial .id, .tq.Partial b { color: var(--mod-t) }
+.tq.None { background: var(--weak-bg); border-color: var(--weak-bg) } .tq.None .id, .tq.None b { color: var(--weak) }
+.tq.sel { outline: 2px solid var(--accent); outline-offset: 1px }
+.tdet { margin-top: 16px; border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 10px }
+.tdet .hd2 { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: baseline }
+.tdet h3 { margin: 0; font-size: 1.05rem }
+.trl { display: grid; gap: 6px }
+.tr { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font-size: .86rem; cursor: pointer; background: var(--panel); text-align: left; color: var(--fg) }
+.tr.hl-full { border-color: var(--strong); background: var(--strong-bg) }
+.tr .sgm { grid-column: 1 / -1; font-size: .78rem; color: var(--muted) }
+.fchip { border: 1px solid var(--accent); background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 6px 12px; font-size: .84rem; font-weight: 600 }
+.bfull { position: absolute; left: 0; top: 0; bottom: 0; background: var(--strong); border-radius: 3px 0 0 3px }
+@media (max-width: 700px) { .tmrow { grid-template-columns: 1fr } }
+/* readiness + replay + pager */
+.rt { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
+.req { display: grid; gap: 6px; font-size: .84rem; margin: 0 }
+.req div { display: grid; grid-template-columns: 150px 1fr; gap: 8px }
+.req dt { color: var(--muted); font-weight: 600 } .req dd { margin: 0; overflow-wrap: anywhere }
+.blk { margin: 0; padding-left: 18px; font-size: .82rem; color: var(--mod-t); display: grid; gap: 3px }
+.tv { display: grid; gap: 8px }
+.tvrow { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; font-size: .84rem }
+.tvrow .top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center }
+.ex { font: .74rem var(--f-mono); background: var(--code-bg); border-radius: 6px; padding: 4px 8px; overflow-wrap: anywhere; color: var(--muted) }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .82rem; color: var(--muted) }
+.facts b { color: var(--fg); font-variant-numeric: tabular-nums }
+.pager { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; padding-block: 6px }
+.pager button { border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 8px; padding: 5px 11px; min-width: 36px; font-size: .85rem; font-variant-numeric: tabular-nums }
+.pager button.on { background: var(--accent); border-color: var(--accent); color: var(--panel); font-weight: 700 }
+.pager button:disabled { opacity: .4; cursor: default }
+.pager .gap { color: var(--muted); padding: 0 4px }
+@media (max-width: 800px) { .rt { grid-template-columns: 1fr } .req div { grid-template-columns: 1fr } }
+/* side-by-side logic */
+.vs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; min-width: 0 }
+.side { border: 1px solid var(--line); border-radius: 12px; padding: 14px; min-width: 0; display: grid; gap: 10px; align-content: start; background: var(--panel) }
+.side.sp { border-top: 3px solid var(--orange) } .side.sg { border-top: 3px solid var(--teal) }
+.side h4 { margin: 0; font-size: .95rem; font-weight: 800; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline }
+.side h4 .small { font-weight: 500 }
+.src { font: .75rem var(--f-mono); color: var(--muted); background: var(--code-bg); border-radius: 6px; padding: 5px 8px; overflow-wrap: anywhere }
+.lg { display: grid; gap: 6px }
+.lr { display: grid; grid-template-columns: minmax(90px, 34%) 1fr; gap: 8px; align-items: start; font-size: .84rem }
+.lr .fld { font: 500 .78rem var(--f-mono); overflow-wrap: anywhere; padding-top: 2px }
+.lr .op { display: block; font-size: .72rem; color: var(--muted); font-family: var(--f-ui); font-weight: 600 }
+.vals { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0 }
+.val { font: .74rem var(--f-mono); background: var(--code-bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; overflow-wrap: anywhere; max-width: 100% }
+.val.hit { background: var(--strong-bg); border-color: var(--strong); color: var(--strong); font-weight: 500 }
+.sel { border-left: 3px solid var(--accent-soft); padding-left: 10px; display: grid; gap: 6px }
+.sel.flt { border-left-color: var(--weak-bg) }
+.sel .nm { font: 600 .74rem var(--f-mono); color: var(--accent) } .sel.flt .nm { color: var(--weak) }
+.or { font-size: .68rem; font-weight: 800; letter-spacing: .1em; color: var(--muted) }
+.cond { font: .78rem var(--f-mono); background: var(--accent-soft); color: var(--accent); border-radius: 6px; padding: 5px 8px; overflow-wrap: anywhere }
+.xl { font-size: .8rem } .xl summary { cursor: pointer; color: var(--accent); font-weight: 600; margin-top: 2px }
+.xl pre { margin-top: 6px }
+.vs-note { font-size: .8rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 12px; align-items: center }
+@media (max-width: 800px) { .vs { grid-template-columns: 1fr } }
+.method { font-size: .86rem; color: var(--muted); max-width: 92ch }
+.method h2 { font-size: 1rem; color: var(--fg); margin: 0 0 6px }
+@media (max-width: 700px) {
+  #net { width: 70%; opacity: .6 }
+  .body { padding-left: 18px } .two { grid-template-columns: 1fr }
+  .chart { grid-template-columns: 110px 1fr; column-gap: 10px; font-size: .82rem }
+  .rule > summary { grid-template-columns: 30px 1fr } .rule > summary .pill { grid-column: 2; justify-self: start }
+}
+@media (prefers-reduced-motion: reduce) { .br .fill { transition: none } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side" aria-label="Main navigation">
+    <a class="logo" href="#overview">
+      <svg width="30" height="32" viewBox="0 0 30 32" aria-hidden="true"><path d="M15 1 3 5.5v9.2C3 23 8.3 28.6 15 31c6.7-2.4 12-8 12-16.3V5.5L15 1Z" fill="var(--accent)"/><path d="M15 6.2 8 8.9v5.9c0 5.2 3 8.9 7 10.6 4-1.7 7-5.4 7-10.6V8.9l-7-2.7Z" fill="var(--panel)"/><path d="m12.4 11.4 4.9 4-4.9 4" stroke="var(--accent)" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span><b>ThreatLens</b><small>Detection Analytics</small></span>
+    </a>
+    <nav class="nav" id="nav">
+      <a class="nv" data-v="overview" href="#overview"><svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9Z"/></svg>Overview</a>
+      <a class="nv" data-v="map" href="#map"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="12" cy="17" r="2.5"/><circle cx="4" cy="16" r="1.5"/><path d="M8 7.5 15.6 7M7.2 8.2l3.8 6.6M16.8 9.3 13.3 15"/></svg>Splunk 95 Sigma Map</a>
+      <a class="nv" data-v="detections" href="#detections"><svg viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg>Detections</a>
+      <a class="nv" data-v="coverage" href="#coverage"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>ATT&amp;CK Coverage</a>
+      <a class="nv" data-v="threats" href="#threats"><svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6l-8-3Z"/><path d="M12 8v5M12 16h.01"/></svg>Threats (APT &amp; CVE)</a>
+      <a class="nv" data-v="sigma" href="#sigma"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg>Sigma Rules</a>
+      <a class="nv" data-v="analytics" href="#analytics"><svg viewBox="0 0 24 24"><path d="M4 20h16M7 16v-5M12 16V6M17 16v-8"/></svg>Analytics</a>
+      <a class="nv" data-v="research" href="#research"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m20 20-4.8-4.8M8 10.5h5M10.5 8v5"/></svg>Research</a>
+      <a class="nv" data-v="reports" href="#reports"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>Reports</a>
+      <span class="navsep"></span>
+      <a class="nv" data-v="settings" href="#settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>Settings</a>
+      <a class="nv" data-v="help" href="#help"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg>Help</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <label class="gsearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="gq" type="search" placeholder="Search detections, techniques, or rules…" aria-label="Search detections, techniques, or rules"></label>
+      <span class="tbchip" title="Rule content snapshot"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg><span>Content as of <b id="asof">…</b></span></span>
+      <button type="button" class="tbbtn" id="themeBtn" aria-label="Switch light or dark theme" title="Switch theme"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg></button>
+    </header>
+
+    <main class="wrap">
+      <!-- OVERVIEW -->
+      <section class="view" data-view="overview" hidden>
+        <header class="hero">
+          <svg id="net" aria-hidden="true"></svg>
+          <h1>Splunk 95 Sigma Map</h1>
+          <p class="lede">All <b id="nrules"></b> Splunk detections (production and experimental) from <a href="https://research.splunk.com/detections/" target="_blank" rel="noopener">Splunk Security Content</a> mapped to <a href="https://github.com/SigmaHQ/sigma" target="_blank" rel="noopener">SigmaHQ</a> rules and MITRE ATT&amp;CK, showing what each one detects, how it maps to ATT&amp;CK, and the closest SigmaHQ rules.</p>
+        </header>
+        <section class="summary" id="summary"></section>
+        <section class="card" aria-label="Rules per ATT&amp;CK tactic">
+          <div class="chead">
+            <div class="ttl">
+              <div class="ico b"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="12" width="3.4" height="8" rx="1"/><rect x="10.3" y="8" width="3.4" height="12" rx="1"/><rect x="16.6" y="4" width="3.4" height="16" rx="1"/></svg></div>
+              <div><h2>Rules per ATT&amp;CK Tactic</h2><p>Number of Splunk rules mapped to each MITRE ATT&amp;CK tactic. The green part is rules fully covered by a Sigma rule. Click a tactic to list its rules.</p></div>
+            </div>
+            <div class="tabs" id="tabs"></div>
+          </div>
+          <div class="chart" id="chart"></div>
+        </section>
+      </section>
+
+      <!-- SIGMA MAP (rule list) -->
+      <section class="view" data-view="map" hidden>
+        <div class="vh"><h1>Splunk 95 Sigma Map</h1><p>Every Splunk detection with its SPL, ATT&amp;CK mapping, readiness and the Sigma rules that cover it. Fully covered rules are highlighted in green.</p></div>
+        <div class="filters">
+          <input id="q" type="search" placeholder="Search rule, technique ID, binary, Sigma title or ID…" aria-label="Search">
+          <select id="fcov" aria-label="Sigma coverage"><option value="">All Sigma coverage</option><option value="Full">Full cover</option><option value="Partial">Partial cover</option><option value="None">No cover</option></select>
+          <select id="frel" aria-label="Relevance"><option value="">All relevance</option><option>High</option><option>Medium</option><option>Low</option></select>
+          <select id="fov" aria-label="Detection overlap"><option value="">All overlap</option></select>
+          <select id="ffea" aria-label="Feasibility"><option value="">All feasibility</option><option>High</option><option>Medium</option><option>Low</option></select>
+          <select id="frdy" aria-label="Implementation readiness"><option value="">All readiness</option><option>Ready</option><option>Needs setup</option><option>Complex</option></select>
+          <select id="fcat" aria-label="Domain"><option value="">All domains</option></select>
+          <button type="button" class="fchip" id="techChip" hidden></button>
+          <button type="button" class="fchip" id="tacChip" hidden></button>
+          <span class="count" id="count"></span>
+        </div>
+        <nav class="pager" id="pagerTop" aria-label="Pages"></nav>
+        <section class="list" id="list"><p class="small">Loading Splunk rules…</p></section>
+        <nav class="pager" id="pagerBot" aria-label="Pages"></nav>
+      </section>
+
+      <!-- DETECTIONS table -->
+      <section class="view" data-view="detections" hidden>
+        <div class="vh"><h1>Detections</h1><p>All Splunk detections in one table. Click a row to open it in the Sigma map.</p></div>
+        <div class="toolrow">
+          <label class="fsearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="dq" type="search" placeholder="Filter detections" aria-label="Filter detections"></label>
+          <select id="dcov" aria-label="Sigma coverage"><option value="">All Sigma coverage</option><option value="Full">Full cover</option><option value="Partial">Partial cover</option><option value="None">No cover</option></select>
+          <select id="dtype" aria-label="Type"><option value="">All types</option></select>
+          <span class="count" id="dcount"></span>
+        </div>
+        <div class="tblwrap card flat"><table class="tbl" id="dtbl"></table></div>
+        <nav class="pager" id="dpager" aria-label="Pages"></nav>
+      </section>
+
+      <!-- ATT&CK COVERAGE -->
+      <section class="view" data-view="coverage" hidden>
+        <div class="vh"><h1>ATT&amp;CK Technique Coverage</h1><p>Every technique the Splunk rules detect, coloured by how well Sigma covers them. Numbers are Splunk rules fully covered / total.</p></div>
+        <div class="toolrow">
+          <label class="fsearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="tmq" type="search" placeholder="Find technique (T1059)" aria-label="Find technique"></label>
+          <select id="tmtac" aria-label="Tactic"><option value="">All tactics</option></select>
+          <select id="tmact" aria-label="Threat actor"><option value="">All threat actors</option></select>
+          <span class="grow"></span>
+          <label class="grpsel"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 13h8M8 16h5"/></svg><select id="tmgrp" aria-label="Grouping"><option value="matrix" selected>ATT&amp;CK matrix</option><option value="tactic">Grouped by tactic</option><option value="flat">All techniques A–Z</option><option value="gaps">Biggest gaps first</option></select></label>
+        </div>
+        <div class="cvtiles" id="cvtiles"></div>
+        <div class="tcards" id="tmap"></div>
+      </section>
+
+      <!-- SIGMA RULES -->
+      <section class="view" data-view="sigma" hidden>
+        <div class="vh"><h1>Sigma Rules</h1><p>Every SigmaHQ rule linked to a Splunk detection, with how many Splunk rules it fully covers. Click a row to see them.</p></div>
+        <div class="toolrow">
+          <label class="fsearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="sq" type="search" placeholder="Filter by title, ID or log source" aria-label="Filter Sigma rules"></label>
+          <select id="slev" aria-label="Level"><option value="">All levels</option><option>critical</option><option>high</option><option>medium</option><option>low</option><option>informational</option></select>
+          <select id="sfull" aria-label="Coverage"><option value="">All Sigma rules</option><option value="full">Fully covers at least one Splunk rule</option><option value="nofull">Never fully covers</option></select>
+          <span class="count" id="scount"></span>
+        </div>
+        <div class="tblwrap card flat"><table class="tbl" id="stbl"></table></div>
+        <nav class="pager" id="spager" aria-label="Pages"></nav>
+      </section>
+
+      <!-- THREATS -->
+      <section class="view" data-view="threats" hidden>
+        <div class="vh"><h1>Threats: APT Groups &amp; CVEs</h1><p>Threat actors and vulnerabilities linked to the Splunk detections and their Sigma rules. Actor links come from Splunk analytic stories, Sigma tags and emerging-threat folders, matched to MITRE ATT&amp;CK groups; the techniques each group uses come from ATT&amp;CK.</p></div>
+        <div class="toolrow">
+          <label class="fsearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="thq" type="search" placeholder="Filter by group, alias or CVE" aria-label="Filter threats"></label>
+          <select id="thall" aria-label="Which groups"><option value="linked">Groups linked to a rule</option><option value="all">All ATT&amp;CK groups</option></select>
+        </div>
+        <section class="card"><div class="chead"><div class="ttl"><div class="ico v"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div><div><h2>Threat Actors (APT groups)</h2><p>Coverage of the techniques each group uses. Click a group to see its techniques on the ATT&amp;CK matrix.</p></div></div></div>
+          <div class="tblwrap"><table class="tbl" id="tgrp"></table></div></section>
+        <section class="card"><div class="chead"><div class="ttl"><div class="ico o"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4M12 17h.01"/></svg></div><div><h2>CVEs</h2><p>Vulnerabilities named by a Splunk detection or a linked Sigma rule, with the Sigma coverage of those detections.</p></div></div></div>
+          <div class="tblwrap"><table class="tbl" id="tcve"></table></div></section>
+      </section>
+
+      <!-- ANALYTICS -->
+      <section class="view" data-view="analytics" hidden>
+        <div class="vh"><h1>Analytics</h1><p>How the Splunk rules and their best Sigma matches compare. Click a segment to open the matching rules.</p></div>
+        <section class="card" aria-label="Pair assessment summary">
+          <div class="chead"><div class="ttl">
+            <div class="ico v"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h10M4 12h16M4 17h7"/><circle cx="17" cy="7" r="2"/><circle cx="14" cy="17" r="2"/></svg></div>
+            <div><h2>Splunk ↔ Sigma Assessment</h2><p>Relevance, detection overlap and feasibility against the best Sigma match, Sigma coverage of the Splunk logic, and whether each Splunk rule is ready to implement.</p></div>
+          </div></div>
+          <div class="asum" id="asum"></div>
+        </section>
+        <section class="card" aria-label="Coverage by domain">
+          <div class="chead"><div class="ttl">
+            <div class="ico t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/></svg></div>
+            <div><h2>Sigma Coverage by Domain</h2><p>Share of Splunk rules in each domain that Sigma fully, partly or does not cover.</p></div>
+          </div></div>
+          <div class="dombars" id="dombars"></div>
+        </section>
+      </section>
+
+      <!-- RESEARCH -->
+      <section class="view" data-view="research" hidden>
+        <div class="vh"><h1>Research: Relevance &amp; Feasibility</h1><p>The rules will run on Windows, so each Splunk rule is first checked for <b>Windows relevance</b>: does it read Windows telemetry? SigmaHQ is then the baseline: each Windows-relevant rule is checked against its best Windows Sigma match (relevance, feasibility, coverage). Where Sigma does not fully cover it, the Splunk rule is researched on its own: is it <b>practical</b> to deploy and is its detection <b>logic</b> sound? Every rule also gets a logic-test definition, listed here but not run. Click a tile, cell or row to drill in.</p></div>
+        <section class="rsverd" id="rsverd" aria-label="Verdicts"></section>
+        <section class="card"><div class="chead"><div class="ttl"><div class="ico b"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3Z"/></svg></div><div><h2>Key Findings</h2><p>What the scores say across all rules, recalculated from the data each time the page loads.</p></div></div></div>
+          <ol class="rsfind" id="rsfind"></ol></section>
+        <section class="card"><div class="chead"><div class="ttl"><div class="ico t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg></div><div><h2>Who Covers Whom</h2><p>For each Windows-relevant Splunk rule and its best Sigma match: does the Sigma rule look for everything the Splunk rule looks for, or the other way round? "Fully covers" means 100% of the other rule's values. Click a segment to list the rules.</p></div></div></div>
+          <div id="rsdir"></div></section>
+        <div class="rs2">
+          <section class="card"><div class="chead"><div class="ttl"><div><h2>Match Relevance × Feasibility</h2><p>Windows-relevant Splunk rules by their best Sigma match. Top-left is where adopting Sigma pays off. Click a cell to list its rules.</p></div></div></div>
+            <div class="rsheat" id="rsheat"></div></section>
+          <section class="card"><div class="chead"><div class="ttl"><div><h2>Logic Tests</h2><p>Test definitions from Splunk Security Content: the attack dataset to load, the conditions to verify and the expected result. They are listed, not run; run them in your test environment.</p></div></div></div>
+            <div id="rslt"></div></section>
+        </div>
+        <section class="card flat" aria-label="Per-rule research">
+          <div class="chead" style="padding:20px 20px 0"><div class="ttl"><div><h2>Every Rule</h2><p>Sorted by priority, then verdict. <b>Windows</b> is whether the rule reads Windows telemetry (data source, test logs, Windows event-log or .exe terms in the search). <b>Practical</b> is the Splunk rule's implementation readiness. <b>Logic</b> is Sound when the rule checks specific conditions, is scoped to its telemetry, maps to ATT&amp;CK and has test data; Plausible when it checks specific conditions but misses one of the others; Unclear when no concrete condition could be read from the search. <b>Priority</b>: High = relevant to Windows, ready to deploy and a TTP rule or tied to a threat actor or CVE; Low = not relevant to Windows, complex setup, hunting search or experimental; Medium = the rest.</p></div></div></div>
+          <div class="toolrow" style="padding:14px 20px">
+            <label class="fsearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="rsq" type="search" placeholder="Filter rules" aria-label="Filter rules"></label>
+            <select id="rsv" aria-label="Verdict"><option value="">All verdicts</option></select>
+            <select id="rsp" aria-label="Priority"><option value="">All priorities</option><option>High</option><option>Medium</option><option>Low</option></select>
+            <select id="rsw" aria-label="Windows relevance"><option value="">All Windows relevance</option><option value="Windows">Relevant to Windows</option><option value="Cross-platform">Cross-platform</option><option value="Depends">Depends on other rules</option><option value="Not Windows">Not relevant to Windows</option></select>
+            <select id="rsd" aria-label="Coverage direction"><option value="">All coverage directions</option></select>
+            <select id="rsb" aria-label="Sigma baseline"><option value="">All Sigma baselines</option><option value="covered">Covered</option><option value="partial">Partly covered</option><option value="none">Not covered</option></select>
+            <select id="rst" aria-label="Logic"><option value="">All logic</option><option>Sound</option><option>Plausible</option><option>Unclear</option></select>
+            <select id="rsc" aria-label="Domain"><option value="">All domains</option></select>
+            <span class="count" id="rscount"></span>
+          </div>
+          <div class="tblwrap"><table class="tbl" id="rstbl"></table></div>
+          <nav class="pager" id="rspager" aria-label="Pages" style="padding:12px 20px"></nav>
+        </section>
+      </section>
+
+      <!-- REPORTS -->
+      <section class="view" data-view="reports" hidden>
+        <div class="vh"><h1>Reports</h1><p>Sigma coverage of the Splunk detections, by tactic, with the largest gaps to close first.</p></div>
+        <section class="card"><div class="chead"><div class="ttl"><div><h2>Coverage by Tactic</h2><p>Splunk rules and ATT&amp;CK techniques per tactic, split by Sigma coverage.</p></div></div></div>
+          <div class="tblwrap"><table class="tbl" id="rtac"></table></div></section>
+        <section class="card"><div class="chead"><div class="ttl"><div><h2>Largest Gaps</h2><p>Techniques with the most Splunk rules and no Sigma rule that fully covers any of them. Click one to see its rules.</p></div></div></div>
+          <div class="tblwrap"><table class="tbl" id="rgap"></table></div></section>
+        <section class="card"><div class="chead"><div class="ttl"><div><h2>Most Useful Sigma Rules</h2><p>Sigma rules that fully cover the most Splunk detections.</p></div></div></div>
+          <div class="tblwrap"><table class="tbl" id="rsig"></table></div></section>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="view" data-view="settings" hidden>
+        <div class="vh"><h1>Settings</h1><p>Saved in this browser only.</p></div>
+        <section class="card setgrid">
+          <div><h2>Theme</h2><p class="small">Follow the system setting or pick one.</p></div>
+          <div class="seg" id="themeSeg" role="radiogroup" aria-label="Theme"><button type="button" data-t="system">System</button><button type="button" data-t="light">Light</button><button type="button" data-t="dark">Dark</button></div>
+          <div><h2>Rules per page</h2><p class="small">For the Sigma map, Detections and Sigma Rules lists.</p></div>
+          <div class="seg" id="perSeg" role="radiogroup" aria-label="Rules per page"><button type="button" data-n="25">25</button><button type="button" data-n="50">50</button><button type="button" data-n="100">100</button></div>
+        </section>
+      </section>
+
+      <!-- HELP -->
+      <section class="view" data-view="help" hidden>
+        <div class="vh"><h1>Help</h1><p>What each score and label on this site means.</p></div>
+        <section class="card method" id="methodBox">
+          <h2>How the Sigma matches were found</h2>
+          <p>Each Splunk search was broken into its indicators: quoted values, field values, and the process names behind macros such as <code>`process_rundll32`</code>. The same was done for the detection block of every active SigmaHQ rule. A pair's score combines weighted indicator overlap (rare strings count more than common ones like <code>powershell.exe</code>), title similarity, and whether both rules tag the same ATT&amp;CK technique. <b>Relevance</b> scores whether the two rules target the same behaviour: a shared ATT&amp;CK technique, similar names, the same telemetry (for example Endpoint.Processes and process_creation) and shared logic. <b>Detection overlap</b> compares the values each rule checks: the share of Splunk values that also appear in the Sigma rule and the reverse, plus exclusions and thresholds only one side has. <b>Feasibility</b> comes from converting the Sigma rule with pySigma and its Splunk backend: straight to a CIM tstats search (High), to raw Windows event SPL (Medium), or only without field mapping (Medium or Low). Experimental status, placeholders and regex lower it. <b>Sigma coverage</b> compares what the rules look for: <b>Full cover</b> means every value the Splunk rule looks for (process names, command-line strings, registry paths, event codes and so on) also appears in the Sigma rule; <b>Partial cover</b> means only some do; <b>No cover</b> means none do, or no Sigma rule was found. It compares values, not how the conditions combine them, so check the side-by-side view for extra conditions or exclusions on the Sigma side. <b>Implementation readiness</b> reads Splunk’s own metadata for each rule: the data sources and Splunkbase add-ons it needs, how common that telemetry is, the CIM data model, index macros, lookups, rule type and status, and whether Splunk publishes test data. Tactic names follow the current ATT&amp;CK release, where Defense Evasion is split into Stealth and Defense Impairment.</p>
+        </section>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="tdet" hidden aria-label="Technique details"></aside>
+
+<script>
+fetch('data.json', {cache: 'no-store'}).then(res => { if (!res.ok) throw new Error(res.status + ' ' + res.statusText); return res.json(); }).then(start)
+  .catch(err => { document.getElementById('list').innerHTML = `<p class="small">Could not load data.json (${err.message}). Open this page through the local web server, not as a file.</p>`; });
+function start(D) {
+const R = D.rules;
+const TAC = ["reconnaissance","resource-development","initial-access","execution","persistence","privilege-escalation","stealth","defense-impairment","credential-access","discovery","lateral-movement","collection","command-and-control","exfiltration","impact"];
+const tname = t => t.split('-').map(w => w === 'and' ? 'and' : w[0].toUpperCase() + w.slice(1)).join(' ');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// SPL syntax highlighting: returns escaped HTML with token spans
+const SPL_KW = /^(AND|OR|NOT|IN|BY|AS|FROM|WHERE|OVER|OUTPUT|OUTPUTNEW|LIKE)$/i;
+const SPL_TOK = /(```[\s\S]*?```)|("(?:\\.|[^"\\])*")|(`[^`]*`)|(\||\[)|([A-Za-z_][\w.:*{}]*)|(\d+(?:\.\d+)?)|(!=|<=|>=|==|=|<|>)/g;
+function hlSPL(src) {
+  src = String(src ?? ''); let out = '', last = 0, cmd = false, m;
+  const tag = (c, t) => `<span class="${c}">${esc(t)}</span>`;
+  SPL_TOK.lastIndex = 0;
+  while ((m = SPL_TOK.exec(src))) {
+    out += esc(src.slice(last, m.index)); last = SPL_TOK.lastIndex;
+    const [t, com, str, mac, pipe, word, num, op] = m;
+    if (com) out += tag('cm', t);
+    else if (str) out += tag('s', t);
+    else if (mac) out += tag('m', t);
+    else if (pipe) { out += t === '|' ? tag('p', t) : esc(t); cmd = true; continue; }
+    else if (word) {
+      const next = src.slice(last).match(/^\s*(\(|!=|<=|>=|=|<|>)?/)[1];
+      if (cmd) out += tag('c', t);
+      else if (SPL_KW.test(t) && next !== '=') out += tag('k', t);
+      else if (next === '(') out += tag('f', t);
+      else if (next) out += tag('d', t);
+      else out += esc(t);
+    }
+    else if (num) out += tag('n', t);
+    else out += tag('p', op);
+    cmd = false;
+  }
+  return out + esc(src.slice(last));
+}
+R.forEach(r => { r.tactics = [...new Set(r.mitre.flatMap(m => m.tactics))]; });
+// Sigma coverage = how much of what the Splunk rule looks for is also in the Sigma rule.
+// Full: all of it; Partial: some; None: nothing (or no Sigma rule at all).
+const covOf = m => m.assess ? m.assess.overlap.splunk_cov : 0;
+const COVER = {Full: 'Full cover', Partial: 'Partial cover', None: 'No cover'};
+const GROUPS = D.groups || [], GRP = {}; GROUPS.forEach(g => GRP[g.id] = g);
+function tiBlock(r) {
+  const acts = r.actors || [], cves = r.cves || [], st = r.stories || [];
+  const sa = [...new Set(r.matches.flatMap(m => m.actors || []))].filter(a => !acts.includes(a));
+  const sc = [...new Set(r.matches.flatMap(m => m.cves || []))].filter(c => !cves.includes(c));
+  if (!acts.length && !cves.length && !st.length && !sa.length && !sc.length) return '';
+  const apt = a => `<a class="chip apt" href="${GRP[a] ? GRP[a].url : '#'}" target="_blank" rel="noopener" title="${esc(GRP[a] ? GRP[a].aliases.join(', ') : '')}">${esc(GRP[a] ? GRP[a].name : a)} <span class="small">${a}</span></a>`;
+  const cve = c => `<a class="chip cve" href="https://nvd.nist.gov/vuln/detail/${c}" target="_blank" rel="noopener">${c}</a>`;
+  return `<div><h3>Threat intel: APT groups &amp; CVEs</h3><div class="mitre">
+    ${acts.length ? `<div class="mt"><span class="tac" style="min-width:150px">Splunk rule tied to</span><span class="ti">${acts.map(apt).join('')}</span></div>` : ''}
+    ${cves.length ? `<div class="mt"><span class="tac" style="min-width:150px">Splunk rule detects</span><span class="ti">${cves.map(cve).join('')}</span></div>` : ''}
+    ${sa.length || sc.length ? `<div class="mt"><span class="tac" style="min-width:150px">Linked Sigma rules add</span><span class="ti">${sa.map(apt).join('')}${sc.map(cve).join('')}</span></div>` : ''}
+    ${st.length ? `<div class="mt"><span class="tac" style="min-width:150px">Splunk analytic stories</span><span class="ti">${st.map(x => `<span class="chip story">${esc(x)}</span>`).join('')}</span></div>` : ''}
+  </div></div>`;
+}
+R.forEach(r => {
+  r.matches.sort((a, b) => covOf(b) - covOf(a) || b.score - a.score);
+  r.covPct = r.matches.length ? covOf(r.matches[0]) : 0;
+  r.coverage = r.covPct === 100 ? 'Full' : r.covPct > 0 ? 'Partial' : 'None';
+  r.matches.forEach(m => m.cover = covOf(m) === 100 ? 'Full' : covOf(m) > 0 ? 'Partial' : 'None');
+});
+document.getElementById('nrules').textContent = R.length.toLocaleString();
+let curTac = '', curTech = '';
+
+// network motif (fixed layout so it never jumps)
+(function () {
+  const svg = document.getElementById('net'), W = 520, H = 190;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const P = Array.from({length: 22}, () => [30 + rnd() * (W - 40), 12 + rnd() * (H - 24), 3 + rnd() * 6]);
+  let s = '';
+  P.forEach((a, i) => P.slice(i + 1).forEach(b => { if (Math.hypot(a[0]-b[0], a[1]-b[1]) < 105) s += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="var(--node)" stroke-width="1" opacity=".55"/>`; }));
+  P.forEach(p => s += `<circle cx="${p[0]}" cy="${p[1]}" r="${p[2]}" fill="var(--node)" opacity=".7"/>`);
+  svg.innerHTML = s;
+})();
+
+// stat cards; the small charts use this page's own data
+const cov = {Full:0, Partial:0, None:0}; R.forEach(r => cov[r.coverage]++);
+const covName = k => COVER[k];
+const techs = new Set(R.flatMap(r => r.mitre.map(m => m.id)));
+const sigIds = new Set(R.flatMap(r => r.matches.map(m => m.id)));
+const tc = {}, tf = {}; R.forEach(r => r.tactics.forEach(t => { tc[t] = (tc[t]||0)+1; if (r.coverage === 'Full') tf[t] = (tf[t]||0)+1; }));
+const cats = R.reduce((a,r)=>(a[r.category]=(a[r.category]||0)+1,a),{});
+function area(vals, color) {
+  const w = 120, h = 40, mx = Math.max(...vals) || 1, st = w / (vals.length - 1);
+  const pts = vals.map((v, i) => `${(i*st).toFixed(1)},${(h - v/mx*(h-4)).toFixed(1)}`).join(' ');
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polygon points="0,${h} ${pts} ${w},${h}" fill="${color}" opacity=".35"/><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/></svg>`;
+}
+function bars(vals, color) {
+  const mx = Math.max(...vals) || 1, n = vals.length, bw = 90 / n;
+  return `<svg class="spark r" viewBox="0 0 90 44" aria-hidden="true">${vals.map((v,i)=>`<rect x="${i*bw+1}" y="${44 - v/mx*44}" width="${bw-3}" height="${v/mx*44}" rx="1.5" fill="${color}"/>`).join('')}</svg>`;
+}
+const scoreHist = Array(10).fill(0); R.forEach(r => r.matches.forEach(m => scoreHist[Math.min(9, Math.floor((m.score - .2) / .12))]++));
+const tacVals = TAC.map(t => tc[t] || 0);
+const icon = {
+  doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg>',
+  tri: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="19" cy="18" r="2.2"/><path d="M11 7 6 16M13 7l5 9M7.2 18h9.6"/></svg>',
+  link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg>',
+  target: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>'
+};
+const cols = {Full:'var(--strong)', Partial:'var(--mod)', None:'var(--weak)'};
+document.getElementById('summary').innerHTML = `
+  <div class="stat"><div class="ico b">${icon.doc}</div><div><div class="k">Splunk rules</div><div class="v">${R.length.toLocaleString()}</div><div class="s">${Object.entries(cats).map(([k,v])=>`${v} ${k}`).join(' · ')}</div></div>${area(Object.values(cats).sort((a,b)=>a-b), 'var(--accent-2)')}</div>
+  <div class="stat"><div class="ico v">${icon.tri}</div><div><div class="k">ATT&amp;CK techniques</div><div class="v">${techs.size}</div><div class="s">across ${Object.keys(tc).length} tactics</div></div>${bars(tacVals.filter(Boolean).sort((a,b)=>a-b).slice(-5), 'var(--violet)')}</div>
+  <div class="stat"><div class="ico t">${icon.link}</div><div><div class="k">Sigma rules linked</div><div class="v">${sigIds.size.toLocaleString()}</div><div class="s">from ${D.sigma_total.toLocaleString()} active SigmaHQ rules</div></div>${area(scoreHist, 'var(--teal)')}</div>
+  <div class="stat"><div class="ico o">${icon.target}</div><div><div class="k">Sigma coverage of Splunk rules</div>
+    <div class="covbar">${Object.keys(cov).map(k=>`<span style="flex:${cov[k]};background:${cols[k]};border-radius:3px"></span>`).join('')}</div>
+    <div class="legend">${Object.keys(cov).map(k=>`<span><b style="color:${k==='Partial'?'var(--mod-t)':cols[k]}">${cov[k].toLocaleString()}</b> ${covName(k)}</span>`).join('')}</div></div></div>`;
+
+// tactic chart: one linear scale for bars, ticks and grid lines
+const present = TAC.filter(t => tc[t]);
+const tmax = Math.max(...Object.values(tc));
+const rawStep = tmax / 6, mag = 10 ** Math.floor(Math.log10(rawStep || 1));
+const step = [1, 2, 5, 10].map(m => m * mag).find(v => v >= rawStep) || 1, axisMax = Math.ceil(tmax / step) * step;
+const ticks = Array.from({length: axisMax / step + 1}, (_, i) => i * step);
+const x = v => v / axisMax * 100;
+function drawChart() {
+  const ch = document.getElementById('chart');
+  let lab = `<div class="hd">ATT&amp;CK Tactic</div>`, plot = `<div class="axis">${ticks.map(t=>`<span style="left:${x(t)}%">${t}</span>`).join('')}</div>`;
+  let rows = '';
+  present.forEach(t => {
+    const cls = curTac ? (curTac === t ? 'on' : 'dim') : '';
+    lab += `<div class="tl ${curTac===t?'on':''}" data-t="${t}" style="height:27px;line-height:21px">${tname(t)}</div>`;
+    rows += `<div class="br ${cls}" data-t="${t}" title="${tname(t)}: ${tc[t]} rules, ${tf[t]||0} fully covered by Sigma"><div class="trk"></div><div class="fill" style="width:${x(tc[t])}%"><span class="bfull" style="width:${(tf[t]||0)/tc[t]*100}%"></span></div><span class="n">${tc[t]} <span class="small" style="color:var(--strong)">· ${tf[t]||0} full</span></span></div>`;
+  });
+  ch.innerHTML = `<div>${lab}</div><div class="plot" style="margin-right:84px">${plot}<div style="position:relative">${ticks.map(t=>`<div class="gl" style="left:${x(t)}%"></div>`).join('')}${rows}</div></div>`;
+}
+const featured = ['initial-access','execution','persistence'].filter(t => tc[t]);
+function drawTabs() {
+  const rest = present.filter(t => !featured.includes(t));
+  document.getElementById('tabs').innerHTML =
+    `<button class="tab ${curTac===''?'on':''}" data-t="">All Tactics</button>` +
+    featured.map(t => `<button class="tab ${curTac===t?'on':''}" data-t="${t}">${tname(t)}</button>`).join('') +
+    `<select class="tab more ${rest.includes(curTac)?'on':''}" id="moreTac" aria-label="More tactics"><option value="">More</option>${rest.map(t=>`<option value="${t}" ${curTac===t?'selected':''}>${tname(t)}</option>`).join('')}</select>`;
+}
+function setTac(t) { curTac = (curTac === t) ? '' : t; drawTabs(); drawChart(); render(); }
+document.getElementById('tabs').addEventListener('click', e => { const b = e.target.closest('button.tab'); if (b) { curTac = ''; setTac(b.dataset.t); } });
+document.getElementById('tabs').addEventListener('change', e => { if (e.target.id === 'moreTac') { curTac = ''; setTac(e.target.value); } });
+document.getElementById('chart').addEventListener('click', e => { const el = e.target.closest('[data-t]'); if (el) { curTac = ''; setTac(el.dataset.t); go('map'); } });
+
+const fcat = document.getElementById('fcat');
+Object.keys(cats).forEach(c => fcat.add(new Option(c[0].toUpperCase()+c.slice(1), c)));
+
+// ---- detection logic rendering ----
+const nv = v => String(v).toLowerCase().replace(/\*/g, '').replace(/\\+/g, '\\').replace(/^\\|\\$/g, '').trim();
+function isHit(v, shared) {
+  const a = nv(v); if (a.length < 3) return false;
+  return shared.some(s => s.length >= 4 && (a.includes(s) || (a.length >= 4 && s.includes(a))));
+}
+function splOp(op, vals) {
+  const neg = op === '!=' || op === 'not in';
+  if (!['=', '!=', 'in', 'not in'].includes(op)) return {label: {'>':'greater than','<':'less than','>=':'at least','<=':'at most'}[op] || op, strip: false};
+  const kinds = new Set(vals.map(v => /^\*.*\*$/.test(v) && v.length > 2 ? 'contains' : /\*$/.test(v) ? 'starts with' : /^\*/.test(v) ? 'ends with' : /\*/.test(v) ? 'matches' : 'is'));
+  const k = kinds.size === 1 ? [...kinds][0] : 'matches';
+  const label = neg ? (k === 'is' ? 'is not' : k === 'matches' ? 'does not match' : 'does not ' + k.replace('contains','contain').replace('starts','start').replace('ends','end')) : k;
+  return {label: label + (vals.length > 1 ? ' any of' : ''), strip: k !== 'matches'};
+}
+const MOD = {contains:'contains', endswith:'ends with', startswith:'starts with', re:'matches regex', cidr:'in CIDR', windash:'(any dash style)', base64offset:'(base64 encoded)', base64:'(base64)', utf16le:'(UTF-16LE)', wide:'(wide)', exists:'exists', gt:'greater than', lt:'less than', gte:'at least', lte:'at most', expand:'(placeholder)', fieldref:'equals field', cased:'(case-sensitive)'};
+function sigOp(mods, n) {
+  const all = mods.includes('all');
+  const main = mods.filter(m => m !== 'all');
+  const words = main.length ? main.map(m => MOD[m] || m) : ['is'];
+  return words.join(' ') + (n > 1 ? (all ? ' all of' : ' any of') : '');
+}
+const valChips = (vals, shared, strip) => vals.map(v => {
+  const shown = strip ? String(v).replace(/^\*|\*$/g, '') : v;
+  return `<span class="val ${isHit(v, shared) ? 'hit' : ''}">${esc(shown === '' ? '(empty)' : shown)}</span>`;
+}).join('');
+
+function splunkSide(r, shared) {
+  const L = r.logic;
+  const src = [L.datamodel && `datamodel = ${L.datamodel}`, ...L.conditions.filter(c => c.kind === 'source').map(c => `${c.field} = ${c.values.join(' | ')}`)].filter(Boolean);
+  const rows = L.conditions.filter(c => c.kind === 'cond').map((c, i) => {
+    const o = splOp(c.op, c.values);
+    return (c.or && i > 0 ? '<span class="or">OR</span>' : '') + `<div class="lr"><div class="fld">${esc(c.field)}<span class="op">${o.label}</span></div><div class="vals">${valChips(c.values, shared, o.strip)}</div></div>`;
+  }).join('');
+  return `<div class="side sp">
+    <h4>Splunk looks for <span class="small">${esc(r.name)}</span></h4>
+    ${src.length ? `<div class="src">${esc(src.join('  ·  '))}</div>` : ''}
+    <div class="lg">${rows || '<span class="small">See the exact filter below.</span>'}</div>
+    <details class="xl"><summary>Exact Splunk filter (macros expanded)</summary><pre class="spl">${hlSPL(L.expanded)}</pre></details>
+  </div>`;
+}
+function sigmaLogic(m, shared) {
+  const L = m.logic;
+  const sels = L.selections.map(s => `<div class="sel ${s.filter ? 'flt' : ''}"><span class="nm">${esc(s.name)}${s.filter ? ' · excluded' : ''}</span>` +
+    s.groups.map(g => g.map(row => `<div class="lr"><div class="fld">${esc(row.field)}<span class="op">${sigOp(row.mods, row.values.length)}</span></div><div class="vals">${valChips(row.values, shared, false)}</div></div>`).join('')).join('<span class="or">OR</span>') +
+    `</div>`).join('');
+  return `<div class="src">logsource: ${esc(m.logsource)}</div>${sels}<div class="cond">condition: ${esc(L.condition)}</div>
+    <details class="xl"><summary>Sigma YAML (logsource + detection)</summary><pre>${esc(L.raw)}</pre></details>`;
+}
+function sigmaSide(m) {
+  return `<div class="side sg">
+    <h4>Sigma looks for <span class="small">${esc(m.title)} · <span class="sid">${esc(m.id)}</span></span></h4>
+    ${sigmaLogic(m, m.shared)}
+  </div>`;
+}
+
+
+// ---- assessments ----
+const LBL = {High:'g', Medium:'a', Low:'r', Equivalent:'g', 'Sigma ⊇ Splunk':'g', 'Splunk ⊇ Sigma':'a', Partial:'a', Minimal:'r'};
+const LCOL = {g:'var(--strong)', a:'var(--mod)', r:'var(--weak)'};
+const OV_ORDER = ['Equivalent','Sigma ⊇ Splunk','Splunk ⊇ Sigma','Partial','Minimal'];
+const OV_COL = {'Equivalent':'var(--strong)','Sigma ⊇ Splunk':'var(--teal)','Splunk ⊇ Sigma':'var(--accent-2)','Partial':'var(--mod)','Minimal':'var(--weak)'};
+const FEA_MODE = {cim:'Converts to a CIM tstats search', windows:'Converts to raw Windows event SPL', generic:'Converts, but fields need mapping', failed:'Does not convert automatically'};
+const lab = t => `<span class="lab ${LBL[t] || 'a'}">${esc(t)}</span>`;
+const meter = (v, cls) => `<div class="meter"><span style="width:${v}%;background:${LCOL[cls]}"></span></div>`;
+function miniChips(a) {
+  return `<span class="small">Relevance</span>${lab(a.relevance.label)}<span class="small">Overlap</span>${lab(a.overlap.label)}<span class="small">Feasibility</span>${lab(a.feasibility.label)}`;
+}
+const valList = (arr, cls) => arr.length ? arr.map(v => `<span class="val ${cls || ''}">${esc(v.length > 70 ? v.slice(0, 67) + '…' : v)}</span>`).join('') : '<span class="small">None</span>';
+function assessBlock(r, m) {
+  const A = m.assess, Rl = A.relevance, O = A.overlap, F = A.feasibility;
+  return `<div class="assess">
+    <div class="ac"><div class="hdr"><span class="nm">Relevance</span>${lab(Rl.label)}</div>
+      <div class="sc">${Rl.score}<small> / 100</small></div>${meter(Rl.score, LBL[Rl.label])}
+      <ul>${Rl.reasons.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>
+    <div class="ac"><div class="hdr"><span class="nm">Detection overlap</span>${lab(O.label)}</div>
+      <div class="sc">${O.score}<small> / 100</small></div>${meter(O.score, LBL[O.label])}
+      <div class="sum">${esc(O.summary)}</div>
+      <div class="covs">
+        <div class="row"><span>Splunk values also in Sigma (${O.n_splunk})</span><b>${O.splunk_cov}%</b></div>${meter(O.splunk_cov, 'g')}
+        <div class="row"><span>Sigma values also in Splunk (${O.n_sigma})</span><b>${O.sigma_cov}%</b></div>${meter(O.sigma_cov, 'g')}
+      </div>
+      ${O.fields.length ? `<div class="small">Field pairs: <span class="sid">${O.fields.map(esc).join(', ')}</span></div>` : ''}
+      ${O.notes.length ? `<ul>${O.notes.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>
+    <div class="ac"><div class="hdr"><span class="nm">Feasibility</span>${lab(F.label)}</div>
+      <div class="sc">${F.score}<small> / 100</small></div>${meter(F.score, LBL[F.label])}
+      <div class="sum"><b>${FEA_MODE[F.mode]}</b></div>
+      <ul>${F.reasons.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>
+  </div>
+  <details class="xl"><summary>Indicator differences (shared, only Splunk, only Sigma)</summary>
+    <div class="difs">
+      <div><h5>Shared</h5><div class="vals">${valList(O.shared, 'hit')}</div></div>
+      <div><h5>Only in Splunk</h5><div class="vals">${valList(O.only_splunk)}</div></div>
+      <div><h5>Only in Sigma</h5><div class="vals">${valList(O.only_sigma)}</div></div>
+    </div></details>
+  ${F.spl ? `<details class="xl"><summary>Sigma rule converted to Splunk SPL (pySigma, ${F.mode === 'cim' ? 'CIM data model' : F.mode === 'windows' ? 'Windows pipeline' : 'no field mapping'})</summary><div class="codebox" style="margin-top:6px"><button class="copy" type="button">Copy</button><pre class="spl">${hlSPL(F.spl)}</pre></div></details>` : ''}`;
+}
+function drawAssessSummary() {
+  const dims = [
+    ['Relevance', 'frel', 'relevance', ['High','Medium','Low'], k => LCOL[LBL[k]]],
+    ['Detection overlap', 'fov', 'overlap', OV_ORDER, k => OV_COL[k]],
+    ['Feasibility', 'ffea', 'feasibility', ['High','Medium','Low'], k => LCOL[LBL[k]]],
+  ];
+  const extra = [
+    ['Implementation readiness (all rules)', 'frdy', r => r.ready.label, ['Ready','Needs setup','Complex'], k => ({Ready:'var(--strong)','Needs setup':'var(--mod)',Complex:'var(--weak)'})[k], R, r => r.ready.score],
+    ['Sigma coverage of Splunk logic', 'fcov', r => r.coverage, ['Full','Partial','None'], k => cols[k], R, r => r.covPct],
+  ];
+  const all = dims.map(([name, fid, key, order, col]) => [name, fid, r => r.A[key].label, order, col, R.filter(r => r.A), r => r.A[key].score]).concat(extra);
+  document.getElementById('asum').innerHTML = all.map(([name, fid, get, order, col, RA, sc]) => {
+    const c = {}; RA.forEach(r => { const k = get(r); c[k] = (c[k] || 0) + 1; });
+    const keys = order.filter(k => c[k]);
+    const avg = sc ? Math.round(RA.reduce((s, r) => s + sc(r), 0) / (RA.length || 1)) : null;
+    return `<div><div class="dim-k"><span>${name}</span><span class="small">${avg !== null ? `average ${avg} / 100` : `${RA.length.toLocaleString()} rules with a Sigma match`}</span></div>
+      <div class="dist">${keys.map(k => `<span style="flex:${c[k]};background:${col(k)};cursor:pointer" data-f="${fid}" data-v="${esc(k)}" title="${esc(k)}: ${c[k]} rules"></span>`).join('')}</div>
+      <div class="dlg">${keys.map(k => `<span><i style="background:${col(k)}"></i><b>${c[k]}</b> ${esc(k)}</span>`).join('')}</div></div>`;
+  }).join('');
+}
+
+const TV_CLS = {Covers:'g', Partial:'a', Misses:'r', 'Not tested':'a'};
+const RD_CLS = {Ready:'g', 'Needs setup':'a', Complex:'r'};
+const TEST_STATUS = {
+  no_windows_data: 'Not replayed: Splunk\'s sample data for this rule is not Windows event XML (cloud, Linux, network or none).',
+  no_data: 'Not replayed: the sample file was too large (over 25 MB) or could not be downloaded; some are blocked by antivirus because they contain real attack strings.',
+  splunk_no_hits: 'Replayed, but the Splunk filter itself matched no events, usually because it depends on aggregation, lookups or fields the replay cannot derive.',
+  splunk_unsupported: 'Not replayed: the Splunk search uses syntax the replay engine does not evaluate.'};
+function bestTest(r) {
+  const t = r.test;
+  if (!t || t.status !== 'tested') return 'Not tested';
+  const v = Object.values(t.matches).filter(x => x.pct !== null && x.pct !== undefined);
+  if (!v.length) return 'Not tested';
+  const b = v.reduce((a, x) => x.pct > a.pct ? x : a);
+  return {covers:'Covers', partial:'Partial', misses:'Misses'}[b.verdict] || 'Not tested';
+}
+function readyBlock(r) {
+  const R0 = r.ready;
+  return `<div class="ac"><div class="hdr"><span class="nm">Implementation readiness</span>${`<span class="lab ${RD_CLS[R0.label]}">${R0.label}</span>`}</div>
+    <div class="sc">${R0.score}<small> / 100</small></div>${meter(R0.score, RD_CLS[R0.label])}
+    <dl class="req">${R0.req.map(q => `<div><dt>${esc(q.k)}</dt><dd>${esc(q.v)}${q.links ? ' ' + q.links.map((u, i) => `<a href="${u}" target="_blank" rel="noopener">[${i + 1}]</a>`).join(' ') : ''}</dd></div>`).join('')}</dl>
+    ${R0.blockers.length ? `<ul class="blk">${R0.blockers.map(b => `<li>${esc(b)}</li>`).join('')}</ul>` : '<p class="small" style="margin:0">No blockers found: standard telemetry, shipped macros and lookups, and published test data.</p>'}
+  </div>`;
+}
+function coverBlock(r) {
+  const cls = {Full:'g', Partial:'a', None:'r'}[r.coverage];
+  if (!r.matches.length) return `<div class="ac"><div class="hdr"><span class="nm">Sigma coverage</span><span class="lab r">No cover</span></div><p class="small" style="margin:0">No SigmaHQ rule looks for what this Splunk rule looks for.</p></div>`;
+  const b = r.matches[0], O = b.assess.overlap;
+  return `<div class="ac"><div class="hdr"><span class="nm">Sigma coverage</span><span class="lab ${cls}">${COVER[r.coverage]}</span></div>
+    <div class="sc">${r.covPct}<small>% of Splunk logic</small></div>${meter(r.covPct, cls)}
+    <div class="sum">${r.coverage === 'Full' ? `Everything this Splunk rule looks for is also in <b>${esc(b.title)}</b>, so that Sigma rule fully covers it.` : r.coverage === 'Partial' ? `<b>${esc(b.title)}</b> looks for ${Math.round(O.n_splunk * r.covPct / 100)} of the ${O.n_splunk} values this Splunk rule looks for, so it only partly covers it.` : `The closest Sigma rule, <b>${esc(b.title)}</b>, looks for none of the values this Splunk rule looks for.`} <span class="sid">${esc(b.id)}</span></div>
+    ${O.only_splunk.length ? `<div class="small">Splunk looks for, Sigma does not:</div><div class="vals">${valList(O.only_splunk)}</div>` : ''}
+    ${O.shared.length ? `<div class="small">Both look for:</div><div class="vals">${valList(O.shared, 'hit')}</div>` : ''}
+  </div>`;
+}
+
+function cardHead(r, i) {
+  const best = r.matches[0];
+  return `<details class="rule ${r.coverage === 'Full' ? 'hl-full' : ''}" data-i="${i}">
+    <summary>
+      <span class="num">${String(r.n).padStart(4,'0')}</span>
+      <div class="title">${esc(r.name)}
+        <div class="sub">${r.mitre.map(m => `<span class="chip">${m.id}</span>`).join('')}<span class="chip plain">${esc(r.type)}</span><span class="chip plain">${r.category}</span>${r.status !== 'production' ? `<span class="chip plain">${esc(r.status)}</span>` : ''}${(r.actors || []).slice(0, 2).map(a => `<span class="chip apt">${esc(GRP[a] ? GRP[a].name : a)}</span>`).join('')}${(r.cves || []).slice(0, 2).map(c => `<span class="chip cve">${c}</span>`).join('')}${(r.cves || []).length > 2 ? `<span class="small">+${r.cves.length - 2} CVE</span>` : ''}</div>
+        <div class="arrow">${best ? `Sigma: ${esc(best.title)} · <span class="sid">${esc(best.id)}</span>` : 'No matching Sigma rule found'}</div>
+      </div>
+      <span style="display:grid;gap:4px;justify-items:end"><span class="pill ${r.coverage}" title="Share of the Splunk logic found in the best Sigma rule">Sigma: ${COVER[r.coverage]}${r.coverage === 'Partial' ? ` ${r.covPct}%` : ''}</span><span class="lab ${DIR[dirOf(best).k].cls}" title="Coverage direction against the best Sigma match">${DIR[dirOf(best).k].name}</span><span class="lab ${RD_CLS[r.ready.label]}" title="Implementation readiness">${r.ready.label}</span></span>
+    </summary>
+    <div class="body"></div>
+  </details>`;
+}
+function cardBody(r) {
+  const best = r.matches[0];
+  const mitre = r.mitre.map(m => `<div class="mt"><a class="chip" href="${m.url}" target="_blank" rel="noopener">${m.id}</a><span>${esc(m.parent ? m.parent + ': ' : '')}${esc(m.name)}</span><span class="tac">${m.tactics.map(tname).join(', ')}</span></div>`).join('');
+  const sigs = r.matches.map((m, i) => `<div class="sig">
+      <div class="top"><a class="t" href="${m.url}" target="_blank" rel="noopener">${esc(m.title)}</a><span class="small" style="display:inline-flex;gap:6px;flex-wrap:wrap"><span class="lab ${DIR[dirOf(m).k].cls}">${DIR[dirOf(m).k].name}</span><span class="lab n">Sigma→Splunk ${dirOf(m).a}% · Splunk→Sigma ${dirOf(m).b}%</span></span></div>
+      <div class="meta"><span class="sid">id: ${esc(m.id)}</span><span>${esc(m.logsource)}</span><span>level: ${esc(m.level)}</span><span>${m.mitre.join(', ') || 'no technique tag'}</span><span>${esc(m.kind)}</span></div>
+      ${(m.actors || []).length || (m.cves || []).length ? `<div class="ti">${(m.actors || []).map(a => `<a class="chip apt" href="${GRP[a] ? GRP[a].url : '#'}" target="_blank" rel="noopener">${esc(GRP[a] ? GRP[a].name : a)}</a>`).join('')}${(m.cves || []).map(c => `<a class="chip cve" href="https://nvd.nist.gov/vuln/detail/${c}" target="_blank" rel="noopener">${c}</a>`).join('')}</div>` : ''}
+      <div class="d">${esc(m.description)}</div>
+      <div class="shared"><span class="small">Shared indicators:</span>${m.shared.slice(0,6).map(s => `<span class="chip plain">${esc(s.length > 60 ? s.slice(0,57)+'…' : s)}</span>`).join('')}</div>
+      ${i > 0 ? `<div class="mini">${miniChips(m.assess)}</div><details class="xl"><summary>Show assessment against the Splunk rule</summary><div style="margin-top:8px">${assessBlock(r, m)}</div></details><details class="xl"><summary>Show what this Sigma rule looks for</summary><div class="side sg" style="margin-top:8px">${sigmaLogic(m, m.shared)}</div></details>` : ''}
+    </div>`).join('');
+  return `
+      <div><h3>Research: Windows relevance, Sigma baseline, practicality, logic and logic test</h3>${verdictBlock(r)}</div>
+      <div><h3>What it detects</h3><p>${esc(r.description)}</p></div>
+      <div><h3>MITRE ATT&amp;CK</h3><div class="mitre">${mitre}</div></div>
+      ${tiBlock(r)}
+      <div><h3>Will it implement, and does Sigma cover it?</h3><div class="rt">${readyBlock(r)}${coverBlock(r)}</div></div>
+      ${best ? `<div><h3>Splunk ↔ best Sigma match: assessment</h3>${assessBlock(r, best)}</div>` : ''}
+      <div><h3>What each rule looks for</h3>
+        <div class="vs">${splunkSide(r, best ? best.shared : [])}${best ? sigmaSide(best) : '<div class="side sg"><h4>Sigma looks for</h4><p class="small">No matching SigmaHQ rule, so there is nothing to compare.</p></div>'}</div>
+        <div class="vs-note" style="margin-top:8px"><span><span class="val hit">green</span> = indicator both rules look for</span><span>Values in one row are alternatives (any of). Rows must all match unless separated by OR; for Sigma, the condition line decides how selections combine.</span></div>
+      </div>
+      <div><h3>Splunk rule (SPL)</h3><div class="codebox"><button class="copy" type="button">Copy</button><pre class="spl">${hlSPL(r.search)}</pre></div>
+        <p class="small" style="margin-top:6px">Splunk ID <span class="sid">${esc(r.id)}</span> · Data sources: ${esc(r.data_source.join(', ') || 'see implementation')} · <a href="${r.url}" target="_blank" rel="noopener">View on research.splunk.com</a></p></div>
+      <div class="two">
+        <div><h3>How to implement</h3><p class="small">${esc(r.how_to_implement)}</p></div>
+        <div><h3>Known false positives</h3><p class="small">${esc(r.fp)}</p></div>
+      </div>
+      <div><h3>Covering Sigma rules</h3><div class="sigs">${sigs || '<p class="small">No SigmaHQ rule matched this detection. The Splunk rule has no Sigma equivalent in the current SigmaHQ repository.</p>'}</div></div>`;
+}
+
+R.forEach(r => { r.A = r.matches[0] ? r.matches[0].assess : null; });
+OV_ORDER.forEach(k => document.getElementById('fov').add(new Option(k, k)));
+drawAssessSummary();
+document.getElementById('asum').addEventListener('click', e => {
+  const seg = e.target.closest('[data-f]'); if (!seg) return;
+  resetMapFilters();
+  const sel = document.getElementById(seg.dataset.f); sel.value = seg.dataset.v; render(); go('map');
+});
+R.forEach((r, i) => { r._i = i; });
+const list = document.getElementById('list');
+let PER = 50;
+let page = 1, filtered = R;
+list.addEventListener('toggle', e => {
+  const el = e.target;
+  if (!el.matches || !el.matches('details.rule') || !el.open || el.dataset.done) return;
+  el.querySelector('.body').innerHTML = cardBody(R[+el.dataset.i]);
+  el.dataset.done = '1';
+}, true);
+R.forEach(r => { r.hay = [r.name, r.id, r.description, r.search, ...(r.cves || []), ...(r.stories || []), ...(r.actors || []).flatMap(a => GRP[a] ? [GRP[a].name, ...GRP[a].aliases] : [a]), ...r.matches.flatMap(m => m.cves || []), ...r.mitre.flatMap(m => [m.id, m.name]), ...r.matches.map(m => m.title + ' ' + m.id + ' ' + m.mitre.join(' '))].join(' ').toLowerCase(); });
+
+function render() {
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  const c = document.getElementById('fcov').value, k = fcat.value;
+  const fr = document.getElementById('frel').value, fo = document.getElementById('fov').value, ff = document.getElementById('ffea').value;
+  const fy = document.getElementById('frdy').value;
+  filtered = R.filter(r => (!q || r.hay.includes(q)) && (!c || r.coverage === c) && (!curTac || r.tactics.includes(curTac)) && (!k || r.category === k) && (!fr || (r.A && r.A.relevance.label === fr)) && (!fo || (r.A && r.A.overlap.label === fo)) && (!ff || (r.A && r.A.feasibility.label === ff)) && (!fy || r.ready.label === fy) && (!curTech || r.mitre.some(m => m.id === curTech || m.id.startsWith(curTech + '.'))));
+  if (curTech) filtered.sort((a, b) => b.covPct - a.covPct);
+  const chip = document.getElementById('techChip'); chip.hidden = !curTech; chip.textContent = curTech ? `Technique ${curTech} ✕` : '';
+  const tch = document.getElementById('tacChip'); tch.hidden = !curTac; tch.textContent = curTac ? `Tactic ${tname(curTac)} ✕` : '';
+  page = 1;
+  drawPage();
+}
+function drawPage() {
+  const n = filtered.length, pages = Math.max(1, Math.ceil(n / PER));
+  page = Math.min(Math.max(1, page), pages);
+  const from = (page - 1) * PER;
+  list.innerHTML = filtered.slice(from, from + PER).map(r => cardHead(r, r._i)).join('') || '<p class="small">No rules match these filters.</p>';
+  document.getElementById('count').textContent = n ? `${(from + 1).toLocaleString()}–${Math.min(from + PER, n).toLocaleString()} of ${n.toLocaleString()} rules` + (curTac ? ` · ${tname(curTac)}` : '') + (curTech ? ` · ${curTech}` : '') : '0 rules';
+  const nums = [...new Set([1, 2, page - 2, page - 1, page, page + 1, page + 2, pages - 1, pages])].filter(x => x >= 1 && x <= pages).sort((a, b) => a - b);
+  let html = `<button type="button" data-p="${page - 1}" ${page === 1 ? 'disabled' : ''}>‹ Prev</button>`, last = 0;
+  nums.forEach(x => { if (x - last > 1) html += '<span class="gap">…</span>'; html += `<button type="button" data-p="${x}" class="${x === page ? 'on' : ''}" ${x === page ? 'aria-current="page"' : ''}>${x}</button>`; last = x; });
+  html += `<button type="button" data-p="${page + 1}" ${page === pages ? 'disabled' : ''}>Next ›</button>`;
+  ['pagerTop', 'pagerBot'].forEach(id => document.getElementById(id).innerHTML = pages > 1 ? html : '');
+}
+function pagerHTML(pg, pages) {
+  if (pages <= 1) return '';
+  const nums = [...new Set([1, 2, pg - 2, pg - 1, pg, pg + 1, pg + 2, pages - 1, pages])].filter(x => x >= 1 && x <= pages).sort((a, b) => a - b);
+  let html = `<button type="button" data-p="${pg - 1}" ${pg === 1 ? 'disabled' : ''}>‹ Prev</button>`, last = 0;
+  nums.forEach(x => { if (x - last > 1) html += '<span class="gap">…</span>'; html += `<button type="button" data-p="${x}" class="${x === pg ? 'on' : ''}" ${x === pg ? 'aria-current="page"' : ''}>${x}</button>`; last = x; });
+  return html + `<button type="button" data-p="${pg + 1}" ${pg === pages ? 'disabled' : ''}>Next ›</button>`;
+}
+['pagerTop', 'pagerBot'].forEach(id => document.getElementById(id).addEventListener('click', e => {
+  const b = e.target.closest('button[data-p]'); if (!b || b.disabled) return;
+  page = +b.dataset.p; drawPage();
+  document.querySelector('.view[data-view="map"] .filters').scrollIntoView({behavior: 'smooth'});
+}));
+['q','fcov','fcat','frel','fov','ffea','frdy'].forEach(id => document.getElementById(id).addEventListener('input', render));
+
+// ---------- router ----------
+const VIEWS = ['overview', 'map', 'detections', 'coverage', 'threats', 'sigma', 'analytics', 'research', 'reports', 'settings', 'help'];
+let curView = '';
+const drawn = {};
+function go(v) {
+  if (!VIEWS.includes(v)) v = 'coverage';
+  if (v === curView) return;
+  curView = v;
+  document.querySelectorAll('.view').forEach(s => s.hidden = s.dataset.view !== v);
+  document.querySelectorAll('.nv').forEach(a => { a.classList.toggle('on', a.dataset.v === v); if (a.dataset.v === v) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  if (location.hash.slice(1) !== v) location.hash = v;
+  window.scrollTo(0, 0);
+  if (v === 'detections') drawDet();
+  if (v === 'sigma') drawSig();
+  if (v === 'threats') drawThreats();
+  if (v === 'reports' && !drawn.reports) { drawReports(); drawn.reports = 1; }
+  if (v === 'research' && !drawn.research) { drawResearch(); drawn.research = 1; }
+}
+window.addEventListener('hashchange', () => go(location.hash.slice(1)));
+
+// global search -> Sigma map
+const gq = document.getElementById('gq');
+gq.addEventListener('keydown', e => { if (e.key === 'Enter') { document.getElementById('q').value = gq.value; render(); go('map'); } });
+gq.addEventListener('input', () => { if (curView === 'map') { document.getElementById('q').value = gq.value; render(); } });
+document.getElementById('asof').textContent = new Date((D.generated || '2026-09-29') + 'T00:00:00').toLocaleDateString(undefined, {day: 'numeric', month: 'short', year: 'numeric'});
+
+function resetMapFilters() {
+  ['q','fcov','frel','fov','ffea','frdy','fcat'].forEach(id => document.getElementById(id).value = '');
+  curTac = ''; curTech = ''; drawTabs(); drawChart();
+}
+function openRule(i) {
+  resetMapFilters(); render(); go('map');
+  const idx = filtered.indexOf(R[i]);
+  page = Math.floor(idx / PER) + 1; drawPage();
+  const el = list.querySelector(`details[data-i="${i}"]`);
+  if (el) { el.open = true; setTimeout(() => el.scrollIntoView({behavior: 'smooth', block: 'start'}), 30); }
+}
+function listTech(id) {
+  resetMapFilters(); curTech = id; render(); closeDrawer(); go('map');
+}
+
+// ---------- ATT&CK coverage ----------
+const TECH = {};
+R.forEach(r => r.mitre.forEach(m => {
+  const t = TECH[m.id] || (TECH[m.id] = {id: m.id, name: m.name, parent: m.parent, url: m.url, tactics: m.tactics, rules: []});
+  t.rules.push(r);
+}));
+const TL = Object.values(TECH);
+TL.forEach(t => {
+  t.full = t.rules.filter(r => r.coverage === 'Full').length;
+  t.part = t.rules.filter(r => r.coverage === 'Partial').length;
+  t.status = t.full ? 'Full' : t.part ? 'Partial' : 'None';
+});
+const byId = (a, b) => a.id.localeCompare(b.id, undefined, {numeric: true});
+const I = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const TAC_ICON = {
+  'reconnaissance': '<circle cx="7" cy="15" r="3.5"/><circle cx="17" cy="15" r="3.5"/><path d="M10.5 14h3M5 12l2-6h3l1 6M19 12l-2-6h-3l-1 6"/>',
+  'resource-development': '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/>',
+  'initial-access': '<path d="M5 21V4l9-1v18M14 21h5V6h-5"/><circle cx="11" cy="12" r=".6"/>',
+  'execution': '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M12 15h5"/>',
+  'persistence': '<circle cx="12" cy="5" r="2"/><path d="M12 7v14M5 13a7 7 0 0 0 14 0M8 11h8"/>',
+  'privilege-escalation': '<path d="M12 19V5M6 11l6-6 6 6M5 21h14"/>',
+  'stealth': '<path d="M3 3l18 18M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 6 9 6a15 15 0 0 1-2.6 3.2M6.3 7.8C4.1 9.4 3 12 3 12s4 6 9 6c1.5 0 2.9-.4 4.1-1"/>',
+  'defense-impairment': '<path d="M12 3 5 6v5c0 5 3 8.5 7 10 4-1.5 7-5 7-10V6l-7-3Z"/><path d="m9.5 9.5 5 5M14.5 9.5l-5 5"/>',
+  'credential-access': '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M16 7l3 3M14 9l2 2"/>',
+  'discovery': '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5 5-2Z"/>',
+  'lateral-movement': '<path d="M4 8h14M14 4l4 4-4 4M20 16H6M10 12l-4 4 4 4"/>',
+  'collection': '<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v11h14V9M10 13h4"/>',
+  'command-and-control': '<path d="M12 12v9M8 21h8"/><circle cx="12" cy="10" r="2"/><path d="M7.8 5.8a6 6 0 0 0 0 8.4M16.2 5.8a6 6 0 0 1 0 8.4"/>',
+  'exfiltration': '<path d="M12 15V3M7 8l5-5 5 5M4 15v5h16v-5"/>',
+  'impact': '<path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/>'
+};
+const tmtac = document.getElementById('tmtac');
+TAC.filter(t => TL.some(x => x.tactics.includes(t))).forEach(t => tmtac.add(new Option(tname(t), t)));
+let tmStatus = '', selTech = '';
+const collapsed = new Set();
+const tstat = {Full: 0, Partial: 0, None: 0}; TL.forEach(t => tstat[t.status]++);
+function drawCovTiles() {
+  const T = [
+    ['Full', I('<path d="m5 12.5 4.5 4.5L19 7.5"/>'), 'techniques fully covered by Sigma'],
+    ['Partial', I('<path d="M6 12h12"/>'), 'techniques only partially covered'],
+    ['None', I('<path d="M7 7l10 10M17 7 7 17"/>'), 'techniques not covered by any Sigma rule']];
+  document.getElementById('cvtiles').innerHTML = T.map(([k, ic, txt]) =>
+    `<button type="button" class="cvt ${k} ${tmStatus === k ? 'on' : ''}" data-st="${k}" aria-pressed="${tmStatus === k}"><span class="cvi">${ic}</span><span><b>${tstat[k]}</b><span>${txt}</span></span></button>`).join('');
+}
+const chip = t => `<button type="button" class="tq ${t.status} ${selTech === t.id ? 'sel' : ''}" data-tech="${t.id}" title="${esc(t.id + ' ' + (t.parent ? t.parent + ': ' : '') + t.name)} · ${t.full} of ${t.rules.length} Splunk rules fully covered, ${t.part} partially"><span class="id">${t.id}</span><span class="nm">${esc(t.name)}</span><b>${t.full}/${t.rules.length}</b></button>`;
+function tcard(key, title, icon, all, vis) {
+  const nf = all.filter(t => t.status === 'Full').length, open = !collapsed.has(key);
+  return `<article class="tcard"><header class="tch">
+      <span class="ico b sm">${icon}</span><h3>${title}</h3>
+      <span class="small">${nf} of ${all.length} techniques fully covered</span>
+      <span class="prog" role="img" aria-label="${Math.round(nf / all.length * 100)}% fully covered"><span style="width:${nf / all.length * 100}%"></span></span>
+      <span class="grow"></span><span class="small">${vis.length === all.length ? `${all.length} techniques` : `${vis.length} of ${all.length} shown`}</span>
+      <button type="button" class="coll" data-key="${esc(key)}" aria-expanded="${open}" aria-label="${open ? 'Collapse' : 'Expand'} ${title}">${I(open ? '<path d="m6 15 6-6 6 6"/>' : '<path d="m6 9 6 6 6-6"/>')}</button>
+    </header>${open ? `<div class="chips">${vis.map(chip).join('')}</div>` : ''}</article>`;
+}
+// ---- Navigator-style matrix ----
+const MTX = D.matrix || [];
+const TNAME = {};
+MTX.forEach(col => col.techs.forEach(p => { TNAME[p.id] = {id: p.id, name: p.name, parent: null}; p.subs.forEach(sb => TNAME[sb.id] = {id: sb.id, name: sb.name, parent: p.name}); }));
+const tUrl = id => 'https://attack.mitre.org/techniques/' + id.replace('.', '/') + '/';
+const ruleSet = (id, withSubs) => {
+  const out = new Set((TECH[id] || {rules: []}).rules);
+  if (withSubs) Object.keys(TECH).forEach(k => { if (k.startsWith(id + '.')) TECH[k].rules.forEach(r => out.add(r)); });
+  return [...out];
+};
+const aggCache = {};
+function agg(id, withSubs) {
+  const k = id + (withSubs ? '+' : '');
+  if (aggCache[k]) return aggCache[k];
+  const rs = ruleSet(id, withSubs), full = rs.filter(r => r.coverage === 'Full').length, part = rs.filter(r => r.coverage === 'Partial').length;
+  return aggCache[k] = {rules: rs, full, part, status: !rs.length ? 'Nodet' : full ? 'Full' : part ? 'Partial' : 'None'};
+}
+const expanded = new Set();
+const tmact = document.getElementById('tmact');
+GROUPS.filter(g => g.techs.length).sort((a, b) => (b.splunk.length - a.splunk.length) || a.name.localeCompare(b.name)).forEach(g =>
+  tmact.add(new Option(`${g.name}${g.aliases.length ? ' (' + g.aliases.slice(0, 2).join(', ') + ')' : ''}${g.splunk.length ? ' · ' + g.splunk.length + ' rules' : ''}`, g.id)));
+function actTechs() { const g = GRP[tmact.value]; return g ? new Set(g.techs) : null; }
+function mcell(id, name, sub, subs, q, act) {
+  const a = agg(id, !sub), open = expanded.has(id);
+  const matchQ = !q || (id + ' ' + name).toLowerCase().includes(q) || (!sub && subs.some(x => (x.id + ' ' + x.name).toLowerCase().includes(q)));
+  const usedByAct = act && (act.has(id) || (!sub && subs.some(x => act.has(x.id))));
+  const dim = (tmStatus && a.status !== tmStatus) || !matchQ || (act && !usedByAct);
+  const tip = `${id} ${name} · ${a.rules.length ? `${a.full} of ${a.rules.length} Splunk rules fully covered by Sigma, ${a.part} partially` : 'no Splunk detection'}`;
+  return `<div class="mc ${a.status === 'Nodet' ? '' : a.status} ${dim ? 'dim' : ''} ${usedByAct ? 'act' : ''} ${selTech === id ? 'sel' : ''}">
+    <button type="button" class="mcb" data-tech="${id}" title="${esc(tip)}"><span>${esc(name)}${!sub && subs.length ? ` <span class="sc">(${subs.length})</span>` : ''}</span>${a.rules.length ? `<span class="fr">${a.full}/${a.rules.length}</span>` : ''}</button>
+    ${!sub && subs.length ? `<button type="button" class="mexp" data-exp="${id}" aria-expanded="${open}" aria-label="${open ? 'Hide' : 'Show'} ${subs.length} sub-techniques of ${esc(name)}"></button>` : ''}
+  </div>${!sub && subs.length && open ? `<div class="msubs">${subs.map(x => mcell(x.id, x.name, true, [], q, act)).join('')}</div>` : ''}`;
+}
+function drawMatrix(q, tac) {
+  const act = actTechs(), g = GRP[tmact.value];
+  let head = '';
+  if (g) {
+    const used = [...act], withRule = used.filter(t => agg(t, false).rules.length), full = used.filter(t => agg(t, false).status === 'Full');
+    head = `<div class="actsum"><span><a href="${g.url}" target="_blank" rel="noopener"><b>${esc(g.name)}</b></a> ${g.id}${g.aliases.length ? ' · ' + esc(g.aliases.join(', ')) : ''}</span>
+      <span>Uses <b>${used.length}</b> techniques</span><span><b>${withRule.length}</b> have a Splunk detection</span><span><b>${full.length}</b> fully covered by Sigma</span>
+      <span>Outlined cells are techniques this group uses.</span></div>`;
+  }
+  if (!MTX.length) return '<div class="mtxcard"><p class="small" style="padding:16px">The matrix data did not load. Refresh the page with Ctrl+F5.</p></div>';
+  const cols = MTX.filter(c => !tac || c.short === tac).map(c => `<div class="mcol"><div class="mhead"><b>${esc(c.name)}</b><span>${c.techs.length} techniques</span></div>
+    ${c.techs.map(p => mcell(p.id, p.name, false, p.subs, q, act)).join('')}</div>`).join('');
+  return `<div class="mtxcard">${head}<div class="mtxbar">
+      <span><i style="background:var(--strong-bg);border-color:var(--strong)"></i>Fully covered by Sigma</span>
+      <span><i style="background:var(--mod-bg);border-color:var(--mod)"></i>Partially covered</span>
+      <span><i style="background:var(--weak-bg);border-color:var(--weak)"></i>Splunk detects, no Sigma cover</span>
+      <span><i style="background:var(--panel)"></i>No Splunk detection</span>
+      <span>n/m = Splunk rules fully covered / total (sub-techniques included)</span>
+      <span class="grow"></span><button type="button" id="mxall">${expanded.size ? 'Collapse all' : 'Expand all sub-techniques'}</button></div>
+    <div class="mtxwrap"><div class="mtx">${cols}</div></div></div>`;
+}
+function drawTechMap() {
+  const q = document.getElementById('tmq').value.trim().toLowerCase(), tac = tmtac.value, grp = document.getElementById('tmgrp').value;
+  if (grp === 'matrix') { document.getElementById('tmap').innerHTML = drawMatrix(q, tac); return; }
+  const act = actTechs();
+  const show = t => (!tmStatus || t.status === tmStatus) && (!tac || t.tactics.includes(tac)) && (!act || act.has(t.id)) && (!q || (t.id + ' ' + t.name + ' ' + (t.parent || '')).toLowerCase().includes(q));
+  let html = '';
+  if (grp === 'tactic') {
+    html = TAC.filter(x => !tac || x === tac).map(x => {
+      const all = TL.filter(t => t.tactics.includes(x)).sort(byId), vis = all.filter(show);
+      return vis.length ? tcard(x, tname(x), I(TAC_ICON[x] || ''), all, vis) : '';
+    }).join('');
+  } else {
+    const all = [...TL].filter(t => !tac || t.tactics.includes(tac));
+    const vis = all.filter(show).sort(grp === 'gaps' ? (a, b) => (a.full - b.full) || (b.rules.length - b.full - b.part) - (a.rules.length - a.full - a.part) || b.rules.length - a.rules.length : byId);
+    html = vis.length ? tcard('all', grp === 'gaps' ? 'Biggest gaps first' : 'All techniques', I('<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>'), all, vis) : '';
+  }
+  document.getElementById('tmap').innerHTML = html || '<p class="small">No techniques match these filters.</p>';
+}
+function closeDrawer() { selTech = ''; document.getElementById('tdet').hidden = true; document.getElementById('scrim').hidden = true; drawTechMap(); }
+function drawTechDetail() {
+  const box = document.getElementById('tdet'), info = TNAME[selTech] || TECH[selTech];
+  box.hidden = !info; document.getElementById('scrim').hidden = !info;
+  if (!info) return;
+  const isParent = !selTech.includes('.'), A = agg(selTech, isParent);
+  const tacs = MTX.filter(c => c.techs.some(p => p.id === selTech || p.subs.some(x => x.id === selTech))).map(c => c.name);
+  const rs = [...A.rules].sort((a, b) => b.covPct - a.covPct || a.name.localeCompare(b.name));
+  const users = GROUPS.filter(g => g.techs.includes(selTech) || (isParent && g.techs.some(t => t.startsWith(selTech + '.'))));
+  box.innerHTML = `<div class="dhead"><div><div class="small">${tacs.join(' · ')}</div>
+      <h2><a href="${tUrl(selTech)}" target="_blank" rel="noopener">${selTech}</a> ${esc(info.parent ? info.parent + ': ' : '')}${esc(info.name)}</h2>
+      ${isParent && rs.length ? '<div class="small">Includes rules for its sub-techniques.</div>' : ''}</div>
+      <button type="button" class="tbbtn" id="dclose" aria-label="Close">${I('<path d="M6 6l12 12M18 6 6 18"/>')}</button></div>
+    ${rs.length ? `<div class="dstats"><span class="pill Full">${A.full} full</span><span class="pill Partial">${A.part} partial</span><span class="pill None">${rs.length - A.full - A.part} no cover</span></div>
+    <button type="button" class="fchip" id="techToList">Show these ${rs.length} rules in the Sigma map</button>` : '<p class="small">No Splunk detection maps to this technique, so there is nothing for Sigma to cover.</p>'}
+    ${users.length ? `<div><div class="small" style="margin-bottom:6px">Used by ${users.length} ATT&amp;CK group${users.length > 1 ? 's' : ''}</div><div class="ti">${users.map(g => `<button type="button" class="chip apt" data-act="${g.id}" title="${esc(g.aliases.join(', '))}">${esc(g.name)}</button>`).join('')}</div></div>` : ''}
+    <div class="trl">${rs.map(r => `<button type="button" class="tr ${r.coverage === 'Full' ? 'hl-full' : ''}" data-rule="${r._i}">
+      <span><b>${esc(r.name)}</b>${r.mitre.some(m => m.id === selTech) ? '' : ` <span class="small">${r.mitre.map(m => m.id).filter(x => x.startsWith(selTech)).join(', ')}</span>`}</span><span class="pill ${r.coverage}">${COVER[r.coverage]}${r.coverage === 'Partial' ? ' ' + r.covPct + '%' : ''}</span>
+      <span class="sgm">${r.matches.length ? `Sigma: ${esc(r.matches[0].title)} · <span class="sid">${esc(r.matches[0].id)}</span>` : 'No Sigma rule'}${(r.cves || []).length ? ' · ' + r.cves.slice(0, 3).join(', ') : ''}</span></button>`).join('')}</div>`;
+  document.getElementById('dclose').focus();
+}
+function showActor(id) { tmact.value = id; document.getElementById('tmgrp').value = 'matrix'; closeDrawer(); if (curView !== 'coverage') go('coverage'); drawTechMap(); }
+function openTech(id) { selTech = id; if (curView !== 'coverage') go('coverage'); drawTechMap(); drawTechDetail(); }
+document.getElementById('tmap').addEventListener('click', e => {
+  const c = e.target.closest('.coll');
+  if (c) { collapsed.has(c.dataset.key) ? collapsed.delete(c.dataset.key) : collapsed.add(c.dataset.key); drawTechMap(); return; }
+  const x = e.target.closest('[data-exp]');
+  if (x) { expanded.has(x.dataset.exp) ? expanded.delete(x.dataset.exp) : expanded.add(x.dataset.exp); drawTechMap(); return; }
+  if (e.target.id === 'mxall') { if (expanded.size) expanded.clear(); else MTX.forEach(c => c.techs.forEach(p => p.subs.length && expanded.add(p.id))); drawTechMap(); return; }
+  const b = e.target.closest('[data-tech]'); if (b) openTech(b.dataset.tech);
+});
+document.getElementById('cvtiles').addEventListener('click', e => {
+  const b = e.target.closest('[data-st]'); if (!b) return;
+  tmStatus = tmStatus === b.dataset.st ? '' : b.dataset.st; drawCovTiles(); drawTechMap();
+});
+['tmq', 'tmtac', 'tmgrp', 'tmact'].forEach(id => document.getElementById(id).addEventListener('input', drawTechMap));
+document.getElementById('tdet').addEventListener('click', e => {
+  if (e.target.closest('#dclose')) return closeDrawer();
+  if (e.target.id === 'techToList') return listTech(selTech);
+  const ab = e.target.closest('[data-act]'); if (ab) return showActor(ab.dataset.act);
+  const row = e.target.closest('[data-rule]');
+  if (row) { closeDrawer(); openRule(+row.dataset.rule); }
+});
+document.getElementById('scrim').addEventListener('click', closeDrawer);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && selTech) closeDrawer(); });
+document.getElementById('techChip').addEventListener('click', () => { curTech = ''; render(); });
+document.getElementById('tacChip').addEventListener('click', () => { curTac = ''; drawTabs(); drawChart(); render(); });
+
+// ---------- Detections table ----------
+const dtype = document.getElementById('dtype');
+[...new Set(R.map(r => r.type).filter(Boolean))].sort().forEach(t => dtype.add(new Option(t, t)));
+let dpage = 1;
+function drawDet() {
+  const q = document.getElementById('dq').value.trim().toLowerCase(), c = document.getElementById('dcov').value, ty = dtype.value;
+  const rows = R.filter(r => (!q || r.hay.includes(q)) && (!c || r.coverage === c) && (!ty || r.type === ty));
+  const pages = Math.max(1, Math.ceil(rows.length / PER)); dpage = Math.min(Math.max(1, dpage), pages);
+  const from = (dpage - 1) * PER;
+  document.getElementById('dtbl').innerHTML = `<thead><tr><th>#</th><th>Detection</th><th>Type</th><th>Domain</th><th>ATT&amp;CK</th><th>Readiness</th><th>Sigma cover</th></tr></thead><tbody>` +
+    rows.slice(from, from + PER).map(r => `<tr class="${r.coverage === 'Full' ? 'hl-full' : ''}" data-rule="${r._i}" tabindex="0">
+      <td class="num">${String(r.n).padStart(4, '0')}</td>
+      <td><b>${esc(r.name)}</b><div class="small">${r.matches.length ? 'Sigma: ' + esc(r.matches[0].title) : 'No Sigma rule'}</div></td>
+      <td>${esc(r.type)}</td><td>${esc(r.category)}</td>
+      <td><div class="sub">${r.mitre.slice(0, 3).map(m => `<span class="chip">${m.id}</span>`).join('')}${r.mitre.length > 3 ? `<span class="small">+${r.mitre.length - 3}</span>` : ''}</div></td>
+      <td><span class="lab ${RD_CLS[r.ready.label]}">${r.ready.label}</span></td>
+      <td><span class="pill ${r.coverage}">${COVER[r.coverage]}${r.coverage === 'Partial' ? ' ' + r.covPct + '%' : ''}</span></td></tr>`).join('') + '</tbody>';
+  document.getElementById('dcount').textContent = rows.length ? `${(from + 1).toLocaleString()}–${Math.min(from + PER, rows.length).toLocaleString()} of ${rows.length.toLocaleString()}` : '0 detections';
+  document.getElementById('dpager').innerHTML = pagerHTML(dpage, pages);
+}
+['dq', 'dcov', 'dtype'].forEach(id => document.getElementById(id).addEventListener('input', () => { dpage = 1; drawDet(); }));
+document.getElementById('dpager').addEventListener('click', e => { const b = e.target.closest('button[data-p]'); if (b && !b.disabled) { dpage = +b.dataset.p; drawDet(); window.scrollTo(0, 0); } });
+function rowOpen(e) { const tr = e.target.closest('tr[data-rule]'); if (tr && (e.type === 'click' || e.key === 'Enter')) openRule(+tr.dataset.rule); }
+document.getElementById('dtbl').addEventListener('click', rowOpen);
+document.getElementById('dtbl').addEventListener('keydown', rowOpen);
+
+// ---------- Sigma rules table ----------
+const SIG = {};
+R.forEach(r => r.matches.forEach(m => {
+  const s = SIG[m.id] || (SIG[m.id] = {id: m.id, title: m.title, level: m.level, logsource: m.logsource, url: m.url, mitre: m.mitre, rules: []});
+  s.rules.push({r, cover: m.cover, pct: covOf(m)});
+}));
+const SL = Object.values(SIG);
+SL.forEach(s => { s.full = s.rules.filter(x => x.cover === 'Full').length; s.rules.sort((a, b) => b.pct - a.pct); s.hay = (s.title + ' ' + s.id + ' ' + s.logsource + ' ' + s.mitre.join(' ')).toLowerCase(); });
+SL.sort((a, b) => b.full - a.full || b.rules.length - a.rules.length || a.title.localeCompare(b.title));
+let spage = 1, sopen = '';
+function drawSig() {
+  const q = document.getElementById('sq').value.trim().toLowerCase(), lv = document.getElementById('slev').value, fu = document.getElementById('sfull').value;
+  const rows = SL.filter(s => (!q || s.hay.includes(q)) && (!lv || s.level === lv) && (!fu || (fu === 'full' ? s.full > 0 : s.full === 0)));
+  const pages = Math.max(1, Math.ceil(rows.length / PER)); spage = Math.min(Math.max(1, spage), pages);
+  const from = (spage - 1) * PER;
+  document.getElementById('stbl').innerHTML = `<thead><tr><th>Sigma rule</th><th>Level</th><th>Log source</th><th>ATT&amp;CK</th><th>Splunk rules</th><th>Fully covers</th></tr></thead><tbody>` +
+    rows.slice(from, from + PER).map(s => `<tr class="${s.full ? 'hl-full' : ''}" data-sig="${s.id}" tabindex="0" aria-expanded="${sopen === s.id}">
+      <td><a href="${s.url}" target="_blank" rel="noopener"><b>${esc(s.title)}</b></a><div class="sid small">${esc(s.id)}</div></td>
+      <td>${esc(s.level)}</td><td class="mono">${esc(s.logsource)}</td>
+      <td><div class="sub">${s.mitre.slice(0, 3).map(m => `<span class="chip">${m}</span>`).join('')}</div></td>
+      <td class="num">${s.rules.length}</td><td class="num"><b>${s.full}</b></td></tr>` +
+      (sopen === s.id ? `<tr class="sub-row"><td colspan="6"><div class="trl">${s.rules.map(x => `<button type="button" class="tr ${x.cover === 'Full' ? 'hl-full' : ''}" data-rule="${x.r._i}"><span><b>${esc(x.r.name)}</b></span><span class="pill ${x.cover}">${COVER[x.cover]}${x.cover === 'Partial' ? ' ' + x.pct + '%' : ''}</span></button>`).join('')}</div></td></tr>` : '')).join('') + '</tbody>';
+  document.getElementById('scount').textContent = rows.length ? `${(from + 1).toLocaleString()}–${Math.min(from + PER, rows.length).toLocaleString()} of ${rows.length.toLocaleString()}` : '0 Sigma rules';
+  document.getElementById('spager').innerHTML = pagerHTML(spage, pages);
+}
+['sq', 'slev', 'sfull'].forEach(id => document.getElementById(id).addEventListener('input', () => { spage = 1; drawSig(); }));
+document.getElementById('spager').addEventListener('click', e => { const b = e.target.closest('button[data-p]'); if (b && !b.disabled) { spage = +b.dataset.p; drawSig(); window.scrollTo(0, 0); } });
+function sigClick(e) {
+  if (e.target.closest('a')) return;
+  const rb = e.target.closest('[data-rule]'); if (rb && e.type === 'click') return openRule(+rb.dataset.rule);
+  const tr = e.target.closest('tr[data-sig]');
+  if (tr && (e.type === 'click' || e.key === 'Enter')) { sopen = sopen === tr.dataset.sig ? '' : tr.dataset.sig; drawSig(); }
+}
+document.getElementById('stbl').addEventListener('click', sigClick);
+document.getElementById('stbl').addEventListener('keydown', sigClick);
+
+// ---------- Threats (APT groups + CVEs) ----------
+const RN = {}; R.forEach(r => RN[r.n] = r);
+function drawThreats() {
+  const q = document.getElementById('thq').value.trim().toLowerCase(), allG = document.getElementById('thall').value === 'all';
+  const gs = GROUPS.map(g => {
+    const used = g.techs, det = used.filter(t => agg(t, false).rules.length), full = used.filter(t => agg(t, false).status === 'Full');
+    return {g, used, det, full, n: g.splunk.length};
+  }).filter(x => (allG || x.n || x.g.sigma.length) && (!q || (x.g.name + ' ' + x.g.id + ' ' + x.g.aliases.join(' ')).toLowerCase().includes(q)))
+    .sort((a, b) => b.n - a.n || b.g.sigma.length - a.g.sigma.length || b.det.length - a.det.length || a.g.name.localeCompare(b.g.name));
+  document.getElementById('tgrp').innerHTML = `<thead><tr><th>Group</th><th>Splunk rules tied to it</th><th>Sigma rules tied to it</th><th>Techniques it uses</th><th>With a Splunk detection</th><th>Fully covered by Sigma</th></tr></thead><tbody>` +
+    gs.slice(0, allG ? 400 : 200).map(x => `<tr data-act="${x.g.id}" tabindex="0" class="${x.full.length && x.full.length === x.det.length && x.det.length ? 'hl-full' : ''}">
+      <td><a href="${x.g.url}" target="_blank" rel="noopener"><b>${esc(x.g.name)}</b></a> <span class="small">${x.g.id}</span><div class="small">${esc(x.g.aliases.slice(0, 5).join(', '))}</div></td>
+      <td class="num"><b>${x.n}</b></td><td class="num">${x.g.sigma.length}</td><td class="num">${x.used.length}</td>
+      <td class="num">${x.det.length} <span class="small">(${x.used.length ? Math.round(x.det.length / x.used.length * 100) : 0}%)</span></td>
+      <td><div class="minibar"><span style="width:${x.used.length ? x.full.length / x.used.length * 100 : 0}%"></span></div><b>${x.full.length}</b> <span class="small">of ${x.used.length}</span></td></tr>`).join('') + '</tbody>';
+  const cv = (D.cves || []).filter(c => !q || c.id.toLowerCase().includes(q) || c.splunk.some(n => RN[n] && RN[n].name.toLowerCase().includes(q)));
+  document.getElementById('tcve').innerHTML = `<thead><tr><th>CVE</th><th>Splunk detections</th><th>Sigma rules naming it</th><th>Sigma coverage of the Splunk detections</th></tr></thead><tbody>` +
+    cv.map(c => {
+      const rs = c.splunk.map(n => RN[n]).filter(Boolean), f = rs.filter(r => r.coverage === 'Full').length, p = rs.filter(r => r.coverage === 'Partial').length;
+      return `<tr class="${rs.length && f === rs.length ? 'hl-full' : ''}"><td><a class="chip cve" href="https://nvd.nist.gov/vuln/detail/${c.id}" target="_blank" rel="noopener">${c.id}</a></td>
+        <td>${rs.length ? rs.map(r => `<button type="button" class="linkbtn" data-rule="${r._i}">${esc(r.name)}</button>`).join('<br>') : '<span class="small">None (named only by Sigma)</span>'}</td>
+        <td>${c.sigma.length ? c.sigma.map(x => `<span class="small">${esc(x.title)}</span> <span class="sid small">${x.id}</span>`).join('<br>') : '<span class="small">None</span>'}</td>
+        <td>${rs.length ? `<span class="pill Full">${f} full</span> <span class="pill Partial">${p} partial</span> <span class="pill None">${rs.length - f - p} none</span>` : '–'}</td></tr>`;
+    }).join('') + '</tbody>';
+}
+['thq', 'thall'].forEach(id => document.getElementById(id).addEventListener('input', drawThreats));
+function thClick(e) {
+  if (e.target.closest('a')) return;
+  const rb = e.target.closest('[data-rule]'); if (rb && e.type === 'click') return openRule(+rb.dataset.rule);
+  const tr = e.target.closest('tr[data-act]'); if (tr && (e.type === 'click' || e.key === 'Enter')) showActor(tr.dataset.act);
+}
+['tgrp', 'tcve'].forEach(id => { document.getElementById(id).addEventListener('click', thClick); document.getElementById(id).addEventListener('keydown', thClick); });
+
+// ---------- Analytics: coverage by domain ----------
+(function () {
+  const doms = {};
+  R.forEach(r => { const d = doms[r.category] || (doms[r.category] = {Full: 0, Partial: 0, None: 0, n: 0}); d[r.coverage]++; d.n++; });
+  document.getElementById('dombars').innerHTML = Object.entries(doms).sort((a, b) => b[1].n - a[1].n).map(([k, d]) =>
+    `<div class="dbr"><span class="dn">${esc(k[0].toUpperCase() + k.slice(1))}<span class="small">${d.n} rules</span></span>
+      <div class="dist tall">${['Full', 'Partial', 'None'].filter(c => d[c]).map(c => `<span style="flex:${d[c]};background:${cols[c]}" title="${COVER[c]}: ${d[c]}"></span>`).join('')}</div>
+      <span class="small dv">${Math.round(d.Full / d.n * 100)}% full · ${Math.round(d.Partial / d.n * 100)}% partial · ${Math.round(d.None / d.n * 100)}% none</span></div>`).join('');
+})();
+
+// ---------- Reports ----------
+function drawReports() {
+  const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '–';
+  document.getElementById('rtac').innerHTML = `<thead><tr><th>Tactic</th><th>Splunk rules</th><th>Full cover</th><th>Partial</th><th>No cover</th><th>% full</th><th>Techniques</th><th>Techniques fully covered</th></tr></thead><tbody>` +
+    TAC.filter(t => tc[t]).map(t => {
+      const rs = R.filter(r => r.tactics.includes(t)), f = rs.filter(r => r.coverage === 'Full').length, p = rs.filter(r => r.coverage === 'Partial').length;
+      const ts = TL.filter(x => x.tactics.includes(t)), tf = ts.filter(x => x.status === 'Full').length;
+      return `<tr><td><b>${tname(t)}</b></td><td class="num">${rs.length}</td><td class="num">${f}</td><td class="num">${p}</td><td class="num">${rs.length - f - p}</td>
+        <td><div class="minibar"><span style="width:${f / rs.length * 100}%"></span></div><span class="small">${pct(f, rs.length)}</span></td><td class="num">${ts.length}</td><td class="num">${tf} <span class="small">(${pct(tf, ts.length)})</span></td></tr>`;
+    }).join('') + '</tbody>';
+  const gaps = TL.filter(t => t.full === 0).sort((a, b) => b.rules.length - a.rules.length || byId(a, b)).slice(0, 25);
+  document.getElementById('rgap').innerHTML = `<thead><tr><th>Technique</th><th>Tactics</th><th>Splunk rules</th><th>Partially covered</th><th>No cover</th></tr></thead><tbody>` +
+    gaps.map(t => `<tr data-tech="${t.id}" tabindex="0"><td><span class="chip">${t.id}</span> ${esc(t.parent ? t.parent + ': ' : '')}${esc(t.name)}</td><td class="small">${t.tactics.map(tname).join(', ')}</td><td class="num"><b>${t.rules.length}</b></td><td class="num">${t.part}</td><td class="num">${t.rules.length - t.part}</td></tr>`).join('') + '</tbody>';
+  document.getElementById('rsig').innerHTML = `<thead><tr><th>Sigma rule</th><th>Level</th><th>Log source</th><th>Fully covers</th><th>Linked Splunk rules</th></tr></thead><tbody>` +
+    SL.slice(0, 20).map(s => `<tr><td><a href="${s.url}" target="_blank" rel="noopener"><b>${esc(s.title)}</b></a><div class="sid small">${esc(s.id)}</div></td><td>${esc(s.level)}</td><td class="mono">${esc(s.logsource)}</td><td class="num"><b>${s.full}</b></td><td class="num">${s.rules.length}</td></tr>`).join('') + '</tbody>';
+}
+function gapOpen(e) { const tr = e.target.closest('tr[data-tech]'); if (tr && (e.type === 'click' || e.key === 'Enter')) openTech(tr.dataset.tech); }
+document.getElementById('rgap').addEventListener('click', gapOpen);
+document.getElementById('rgap').addEventListener('keydown', gapOpen);
+
+// ---------- Coverage direction: does Sigma fully cover Splunk, or Splunk fully cover Sigma? ----------
+// splunk_cov = share of the Splunk rule's values also in the Sigma rule; sigma_cov = share of the Sigma rule's values also in the Splunk rule.
+const DIR = {
+  eq: {name: 'Each fully covers the other', cls: 'g', col: 'var(--strong)'},
+  sg: {name: 'Sigma fully covers Splunk', cls: 't', col: 'var(--teal)'},
+  sp: {name: 'Splunk fully covers Sigma', cls: 'v', col: 'var(--violet)'},
+  pt: {name: 'Partial both ways', cls: 'a', col: 'var(--mod)'},
+  no: {name: 'No shared values', cls: 'r', col: 'var(--weak)'},
+  na: {name: 'No Sigma match', cls: 'n', col: 'var(--muted)'},
+};
+const DIR_ORDER = ['eq', 'sg', 'sp', 'pt', 'no', 'na'];
+function dirOf(m) {
+  if (!m || !m.assess) return {k: 'na', a: 0, b: 0};
+  const a = m.assess.overlap.splunk_cov, b = m.assess.overlap.sigma_cov;
+  return {k: a === 100 && b === 100 ? 'eq' : a === 100 ? 'sg' : b === 100 ? 'sp' : a > 0 || b > 0 ? 'pt' : 'no', a, b};
+}
+function dirBlock(m) {
+  const d = dirOf(m), D = DIR[d.k];
+  if (d.k === 'na') return '';
+  const bar = (pct, col) => `<div class="meter" style="flex:1"><span style="width:${pct}%;background:${col}"></span></div>`;
+  return `<div class="dirbox"><span class="lab ${D.cls}">${D.name}</span>
+    <div class="dirrow"><span>Sigma covers <b>${d.a}%</b> of Splunk</span>${bar(d.a, 'var(--teal)')}</div>
+    <div class="dirrow"><span>Splunk covers <b>${d.b}%</b> of Sigma</span>${bar(d.b, 'var(--violet)')}</div></div>`;
+}
+
+// ---------- Splunk vs Sigma comparison SPL (to run in your own Splunk) ----------
+const TSTATS_RX = /\|\s*tstats\b[\s\S]*?\bfrom\s+datamodel\s*=\s*"?([\w.]+)"?\s+where\s+([\s\S]*?)\s+by\s+([\s\S]*?)(?=\||$)/i;
+const CMP_KEYS = {Processes: ['dest', 'process'], Registry: ['dest', 'registry_path', 'registry_value_data'], Filesystem: ['dest', 'file_path'],
+  All_Traffic: ['src', 'dest', 'dest_port'], DNS: ['src', 'query'], Web: ['src', 'url'], Authentication: ['src', 'user', 'dest']};
+const oneLine = x => x.replace(/\s*\n\s*/g, ' ').trim();
+function compareSPL(r, m) {
+  m = m || r.matches[0];
+  const spl = m && m.assess && m.assess.feasibility.spl;
+  if (!spl) return null;
+  const mode = m.assess.feasibility.mode;
+  const sp = r.search.match(TSTATS_RX), sg = spl.match(TSTATS_RX);
+  const head = [`Splunk rule: ${r.name} (${r.id})`, `Sigma rule:  ${m.title} (${m.id}), converted with pySigma (${mode === 'cim' ? 'CIM data model' : mode === 'windows' ? 'Windows pipeline' : 'no field mapping'})`];
+  if (sp && sg && sp[1].toLowerCase() === sg[1].toLowerCase()) {
+    // same data model: compare event by event
+    const dm = sp[1], node = dm.split('.').pop(), keys = CMP_KEYS[node] || ['dest'], by = ['_time span=1s', ...keys.map(k => `${node}.${k}`)].join(' ');
+    head.push(`Both rules search ${dm}: each event is matched on time (1s), ${keys.join(', ')}.`, 'Needs ESCU installed (Splunk macros). Run both over the same time range.', 'Summary: add | stats count by result');
+    return `\`\`\` ${head.join('\n    ')} \`\`\`
+| tstats summariesonly=false count from datamodel=${dm} where ${oneLine(sp[2])} by ${by}
+| eval matched_by="splunk"
+| append [| tstats summariesonly=false count from datamodel=${dm} where ${oneLine(sg[2])} by ${by} | eval matched_by="sigma"]
+| rename ${node}.* as *
+| stats values(matched_by) as matched_by sum(count) as events by _time ${keys.join(' ')}
+| eval result=case(mvcount(matched_by)=2, "both", matched_by="splunk", "splunk_only", true(), "sigma_only")
+| table _time result ${keys.join(' ')} events
+| sort 0 result -_time`;
+  }
+  // different data sources or shapes: compare per host
+  const both = x => x.replace(/source="WinEventLog:([^"]+)"/g, '(source="WinEventLog:$1" OR source="XmlWinEventLog:$1")');
+  const sigma = spl.trim().startsWith('|') ? spl.trim() : `search index=* ${both(spl.trim())}`;
+  head.push('The two rules read different data, so hits are compared per host (dest).', 'Needs ESCU installed (Splunk macros). Replace index=* with your Windows index to make the Sigma side faster.', 'Summary: add | stats count by result');
+  return `\`\`\` ${head.join('\n    ')} \`\`\`
+${r.search.trim()}
+| eval dest=coalesce(dest, dvc, host, src, user, "(no host field)"), matched_by="splunk"
+| stats count as results by dest matched_by
+| append [${sigma} | eval dest=coalesce(dest, Computer, dvc, host, src, user, "(no host field)"), matched_by="sigma" | stats count as results by dest matched_by]
+| stats values(matched_by) as matched_by sum(results) as results by dest
+| eval result=case(mvcount(matched_by)=2, "both", matched_by="splunk", "splunk_only", true(), "sigma_only")
+| sort 0 result dest`;
+}
+function downloadCompare() {
+  const parts = R.filter(r => r.matches.length && verdictOf(r).k !== 'na').map(r => {
+    const c = compareSPL(r); return c ? `===== ${String(r.n).padStart(4, '0')} ${r.name} [${VERD[r.V.k].name}]\n${c}\n` : '';
+  }).filter(Boolean);
+  const blob = new Blob([`Splunk vs Sigma comparison searches for Windows-relevant rules (${parts.length}). Paste each search into Splunk.\n\n` + parts.join('\n')], {type: 'text/plain'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'splunk-vs-sigma-compare.spl.txt'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ---------- Research: Sigma baseline first, then the Splunk rule on its own ----------
+// Windows relevance: will this rule run against Windows telemetry?
+const WIN_DS = /sysmon eventid|windows|powershell|wineventlog|crowdstrike processrollup2|microsoft defender|ms defender/i, NIX_DS = /linux|auditd|macos|mac os|osquery/i;
+const WIN = {Windows: ['Relevant to Windows', 'g'], 'Cross-platform': ['Cross-platform', 'a'], Depends: ['Depends on other rules', 'a'], 'Not Windows': ['Not relevant to Windows', 'r']};
+function windowsOf(r) {
+  if (r.W) return r.W;
+  const ds = r.data_source, why = [];
+  const wds = ds.filter(x => WIN_DS.test(x) && !NIX_DS.test(x)), nix = ds.filter(x => NIX_DS.test(x));
+  const tw = (r.tests || []).some(t => t.datasets.some(d => /^(xml)?wineventlog/i.test(d.sourcetype)));
+  const nw = /^windows\b/i.test(r.name) || /\b(active directory|kerberos|ntlm|exchange|proxyshell|proxynotshell)\b/i.test(r.name), nn = /^(linux|macos|mac os)\b/i.test(r.name);
+  const sw = /`(sysmon|wineventlog\w*|powershell\w*|windows\w*)`|XmlWinEventLog|WinEventLog/i.test(r.search), exe = /\b[\w-]+\.exe\b/i.test(r.search);
+  if (wds.length) why.push('Windows data source: ' + wds.slice(0, 3).join(', '));
+  if (tw) why.push('Test data is Windows event logs');
+  if (nw) why.push('Rule targets a Windows component by name');
+  if (sw) why.push('Search reads Windows event logs');
+  if (exe) why.push('Search looks for Windows executables (.exe)');
+  const win = wds.length || tw || nw || sw || exe;
+  let k;
+  if (nn) { k = 'Not Windows'; why.unshift('Rule is written for ' + r.name.split(' ')[0] + ', not Windows'); }
+  else if (win && nix.length) { k = 'Cross-platform'; why.push('Also covers Linux/macOS: ' + nix[0]); }
+  else if (win) k = 'Windows';
+  else if (!ds.length && (/^Risk/.test(r.logic.datamodel || '') || r.type === 'Correlation') && !/\b(aws|s3|azure|gcp|o365|m365|okta|github|gitlab|linux|macos|cisco|kubernetes|dev ?sec ?ops)\b/i.test(r.name)) { k = 'Depends'; why.push('Correlation of other detections; relevant if those are Windows rules'); }
+  else { k = 'Not Windows'; why.push(ds.length ? 'Runs on non-Windows logs: ' + ds.slice(0, 3).join(', ') : 'No Windows data source, name or search terms'); }
+  return (r.W = {k, why});
+}
+const VERD = {
+  na:       {name: 'Not relevant to Windows', cls: 'n', col: 'var(--muted)', desc: 'Runs on Linux, macOS, cloud, SaaS or network-device logs, not Windows'},
+  baseline: {name: 'Covered by Sigma baseline', cls: 'g', col: 'var(--strong)', desc: 'A relevant, convertible Sigma rule covers all of the Splunk logic'},
+  psup:     {name: 'Partly covered · Splunk supported', cls: 't', col: 'var(--teal)', desc: 'Sigma covers part; the Splunk rule is practical and logical for the rest'},
+  prev:     {name: 'Partly covered · needs review', cls: 'a', col: 'var(--mod)', desc: 'Sigma covers part; the Splunk rule is complex to deploy or its logic is unclear'},
+  nsup:     {name: 'Not covered · Splunk supported', cls: 'v', col: 'var(--violet)', desc: 'No usable Sigma baseline; the Splunk rule is practical and logical on its own'},
+  nrev:     {name: 'Not covered · needs review', cls: 'r', col: 'var(--weak)', desc: 'No usable Sigma baseline, and the Splunk rule is complex or its logic is unclear'},
+};
+const V_ORDER = ['baseline', 'psup', 'prev', 'nsup', 'nrev', 'na'];
+const P_ORDER = {High: 0, Medium: 1, Low: 2};
+const BASE = {covered: ['Covered', 'g'], partial: ['Partly covered', 'a'], none: ['Not covered', 'r']};
+const PRAC = {Ready: ['Practical', 'g'], 'Needs setup': ['Practical with setup', 'a'], Complex: ['Complex', 'r']};
+const LOGIC_CLS = {Sound: 'g', Plausible: 'a', Unclear: 'r'};
+const AGG_RX = /\|\s*(stats|tstats|eventstats|streamstats)\b/i, THR_RX = /\|\s*(where|search)\s+[^|]*\b(count|dc|risk_score|unique\w*)\b\s*[<>]/i;
+function logicOf(r) {
+  const cond = (r.logic.conditions || []).filter(c => c.kind === 'cond'), src = (r.logic.conditions || []).filter(c => c.kind === 'source');
+  const scoped = !!r.logic.datamodel || src.length > 0 || /^\s*`[a-z0-9_]+`/i.test(r.search) || /\b(index|sourcetype|source)\s*=/.test(r.search);
+  const checks = [
+    [cond.length > 0, cond.length ? `Checks ${cond.length} specific condition${cond.length > 1 ? 's' : ''} (${[...new Set(cond.map(c => c.field))].slice(0, 4).join(', ')})` : 'No concrete field condition could be read from the search'],
+    [scoped, scoped ? (r.logic.datamodel ? `Scoped to the ${r.logic.datamodel} data model` : 'Scoped to a specific log source') : 'Not scoped to a specific data model or log source'],
+    [r.mitre.length > 0, r.mitre.length ? `Mapped to ATT&CK ${r.mitre.map(m => m.id).join(', ')}` : 'No ATT&CK technique mapped'],
+    [(r.tests || []).length > 0, (r.tests || []).length ? 'Splunk publishes a test dataset for it' : 'No published test dataset, so the logic cannot be validated with Splunk data'],
+    [!!r.fp.trim(), r.fp.trim() ? 'False positives documented' : 'No false-positive guidance'],
+  ];
+  const notes = [];
+  if (AGG_RX.test(r.search)) notes.push('Aggregates events' + (THR_RX.test(r.search) ? ' and applies a count threshold: tune it to your environment' : ''));
+  if (/`[a-z0-9_]+_filter`/.test(r.search)) notes.push('Has a _filter macro for tuning');
+  const label = cond.length && scoped && r.mitre.length && (r.tests || []).length ? 'Sound' : cond.length && (scoped || r.mitre.length) ? 'Plausible' : 'Unclear';
+  return {label, checks, notes, cond};
+}
+function verdictOf(r) {
+  if (r.V) return r.V;
+  const W = windowsOf(r), A = r.A;
+  const sigOs = A ? (r.matches[0].logsource || '').split('/')[0] : '', sigWin = !sigOs || sigOs === 'windows' || W.k !== 'Windows';
+  const usable = A && A.relevance.label !== 'Low' && A.feasibility.label !== 'Low' && sigWin;
+  const base = usable && r.coverage === 'Full' ? 'covered' : usable && r.covPct > 0 ? 'partial' : 'none';
+  const logic = logicOf(r), prac = r.ready.label;
+  const threat = (r.actors || []).length + (r.cves || []).length > 0;
+  const prio = W.k === 'Not Windows' || prac === 'Complex' || r.type === 'Hunting' || r.status !== 'production' ? 'Low' : prac === 'Ready' && (threat || r.type === 'TTP') ? 'High' : 'Medium';
+  const ok = logic.label !== 'Unclear' && prac !== 'Complex';
+  const k = W.k === 'Not Windows' ? 'na' : base === 'covered' ? 'baseline' : base === 'partial' ? (ok ? 'psup' : 'prev') : (ok ? 'nsup' : 'nrev');
+  let why;
+  if (k === 'na') why = W.why[0] + '.';
+  else if (base === 'covered') why = `${r.matches[0].title} covers 100% of the Splunk logic (relevance ${A.relevance.score}, feasibility ${A.feasibility.score}).`;
+  else {
+    why = base === 'partial' ? `Sigma baseline covers ${r.covPct}% of the Splunk logic. ` : !A ? 'No SigmaHQ rule matches. ' : `Best Sigma match is not usable (${!sigWin ? 'it is a ' + sigOs + ' rule, not Windows' : A.relevance.label === 'Low' ? 'low match relevance' : A.feasibility.label === 'Low' ? 'low feasibility' : 'no shared values'}). `;
+    why += ok ? `The Splunk rule is ${PRAC[prac][0].toLowerCase()} and its logic is ${logic.label.toLowerCase()}.` : prac === 'Complex' ? 'The Splunk rule is complex to deploy: ' + (r.ready.blockers[0] || '').split(':')[0].toLowerCase() + '.' : 'No concrete condition could be read from the Splunk search, so its logic needs manual review.';
+  }
+  return (r.V = {k, base, why, prio, threat, logic, prac, win: W});
+}
+function testSpec(r) {
+  const v = verdictOf(r), b = v.base !== 'none' ? r.matches[0] : null;
+  return {id: r.id, name: r.name, type: r.type, windows_relevance: v.win.k, search: r.search,
+    expected: r.type === 'Hunting' ? 'Search returns results for analyst review on the test dataset' : 'Search returns at least one result on the test dataset (true positive)',
+    conditions: v.logic.cond.map(c => `${c.field} ${c.op} ${c.values.join(', ')}`),
+    tests: r.tests || [],
+    sigma_baseline: b ? {id: b.id, title: b.title, coverage_pct: r.covPct, spl: b.assess.feasibility.spl || null, expected: 'Matches the same events as the Splunk search'} : null,
+    compare_spl: r.matches.length ? compareSPL(r) : null};
+}
+function verdictBlock(r) {
+  const v = verdictOf(r), V = VERD[v.k], L = v.logic, sp = testSpec(r), cmp = r.matches.length ? compareSPL(r) : null;
+  const mark = ok => ok ? '<span class="ok">✓</span>' : '<span class="no">✕</span>';
+  const tests = (r.tests || []).map(t => `<div><b>${esc(t.name)}</b>${t.type ? ` <span class="small">(${esc(t.type)})</span>` : ''}${t.datasets.map(d => `<div class="ds"><a href="${esc(d.data)}" target="_blank" rel="noopener">${esc(d.data.split('/').slice(-3).join('/'))}</a><br><span class="small">source=${esc(d.source)} · sourcetype=${esc(d.sourcetype)}</span></div>`).join('')}</div>`).join('');
+  return `<div class="rsbox">
+    <div class="rsverdict" style="--c:${V.col}"><span class="lab ${V.cls}">${V.name}</span><span>${esc(v.why)}</span><span class="small">Priority <b>${v.prio}</b></span></div>
+    <div class="ac"><div class="hdr"><span class="nm">0 · Windows relevance</span><span class="lab ${WIN[v.win.k][1]}">${WIN[v.win.k][0]}</span></div>
+      <ul class="chk">${v.win.why.map(t => `<li>${v.win.k === 'Not Windows' ? '<span class="no">✕</span>' : '<span class="ok">✓</span>'}<span>${esc(t)}</span></li>`).join('')}</ul>
+      ${v.k === 'na' ? '<p class="small" style="margin:0">This rule will not run on Windows telemetry, so the Sigma baseline and practical/logic research below are for reference only.</p>' : ''}</div>
+    <div class="rsgrid">
+      <div class="ac"><div class="hdr"><span class="nm">1 · Sigma baseline</span><span class="lab ${BASE[v.base][1]}">${BASE[v.base][0]}</span></div>
+        <div class="sum">${r.A ? `Best match <b>${esc(r.matches[0].title)}</b> (${esc(r.matches[0].logsource)}): match relevance ${r.A.relevance.score}, feasibility ${r.A.feasibility.score}, covers ${r.covPct}% of the Splunk logic.` : 'No SigmaHQ rule matches this detection.'}</div>
+        ${dirBlock(r.matches[0])}
+        ${v.base !== 'covered' ? '<p class="small" style="margin:0">Sigma does not fully cover it, so the Splunk rule is researched on its own →</p>' : '<p class="small" style="margin:0">The Sigma rule is a working baseline for this detection.</p>'}</div>
+      <div class="ac"><div class="hdr"><span class="nm">2 · Practical</span><span class="lab ${PRAC[v.prac][1]}">${PRAC[v.prac][0]}</span></div>
+        <ul class="chk">${r.ready.blockers.length ? r.ready.blockers.slice(0, 4).map(b => `<li><span class="no">!</span><span>${esc(b)}</span></li>`).join('') : '<li><span class="ok">✓</span><span>Standard telemetry, shipped macros and lookups, published test data</span></li>'}</ul></div>
+      <div class="ac"><div class="hdr"><span class="nm">3 · Logical</span><span class="lab ${LOGIC_CLS[L.label]}">${L.label}</span></div>
+        <ul class="chk">${L.checks.map(([ok, t]) => `<li>${mark(ok)}<span>${esc(t)}</span></li>`).join('')}${L.notes.map(t => `<li><span class="nt">·</span><span>${esc(t)}</span></li>`).join('')}</ul></div>
+    </div>
+    <div class="lt"><div class="hdr" style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>Logic test</b><span class="lab ${tests ? 'n' : 'r'}">${tests ? 'Defined · not run' : 'No test data'}</span></div>
+      ${tests ? `<div><span class="small">1. Load the dataset into a test index with the source and sourcetype shown:</span>${tests}</div>
+      <div><span class="small">2. Run the Splunk search (SPL below). The logic under test:</span><ul class="chk">${L.cond.slice(0, 8).map(c => `<li><span class="nt">?</span><span class="ds">${esc(c.field)} ${esc(c.op)} ${esc(c.values.slice(0, 6).join(', '))}${c.values.length > 6 ? ' …' : ''}</span></li>`).join('') || '<li><span class="nt">?</span><span>No parsed conditions; review the SPL directly</span></li>'}</ul></div>
+      <div><span class="small">3. Expected:</span> ${esc(sp.expected)}.${sp.sigma_baseline ? ` <span class="small">Baseline check: the Sigma rule <b>${esc(sp.sigma_baseline.title)}</b> (converted SPL in the assessment below) should match the same events.</span>` : ''}</div>` : '<p class="small" style="margin:0">Splunk publishes no attack dataset for this rule, so a logic test needs your own sample events.</p>'}
+      <div><button type="button" class="btn ghost ltcopy" data-rule="${r._i}">Copy test definition (JSON)</button></div>
+    </div>
+    ${cmp ? `<div class="lt"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><b>Compare with Sigma in your Splunk</b><span class="lab ${BASE[v.base][1]}">Sigma: ${esc(r.matches[0].title)}</span></div>
+      <span class="small">Runs the Splunk rule and the converted Sigma rule together and labels every hit <b>both</b>, <b>splunk_only</b> or <b>sigma_only</b>. Paste it into Splunk search; nothing has been run here.</span>
+      <div class="codebox"><button class="copy" type="button">Copy</button><pre class="spl">${hlSPL(cmp)}</pre></div></div>` : ''}
+  </div>`;
+}
+
+let rsDrawn = false, rspage = 1;
+function downloadTests() {
+  const blob = new Blob([JSON.stringify({generated: D.generated, note: 'Logic-test definitions, not run', rules: R.map(testSpec)}, null, 1)], {type: 'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'splunk-logic-tests.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function drawResearch() {
+  const X = R.map(r => ({r, v: verdictOf(r)}));
+  const n = R.length, pc = (a, b = n) => b ? Math.round(a / b * 100) + '%' : '0%', f = x => x.toLocaleString();
+  const cnt = k => X.filter(x => x.v.k === k).length, bc = b => X.filter(x => x.v.base === b).length;
+  document.getElementById('rsverd').innerHTML = V_ORDER.map(k => `<button type="button" class="rv" data-v="${k}" style="--c:${VERD[k].col}"><span class="k">${VERD[k].name}</span><span class="v">${f(cnt(k))}<small>${pc(cnt(k))}</small></span><span class="s">${VERD[k].desc}</span></button>`).join('');
+  const WX = X.filter(x => x.v.k !== 'na'), nw = WX.length, wc = k => X.filter(x => x.v.win.k === k).length;
+  const naCat = {}; X.filter(x => x.v.k === 'na').forEach(x => naCat[x.r.category] = (naCat[x.r.category] || 0) + 1);
+  const M = WX.filter(x => x.r.A), nm = M.length;
+  const weak = M.filter(x => x.v.base === 'none').length;
+  const bcW = b => WX.filter(x => x.v.base === b).length;
+  const NC = WX.filter(x => x.v.base !== 'covered'), ncSup = NC.filter(x => ['psup', 'nsup'].includes(x.v.k)).length;
+  const lg = l => NC.filter(x => x.v.logic.label === l).length, pr = l => NC.filter(x => x.v.prac === l).length;
+  const blk = {}; NC.forEach(x => x.r.ready.blockers.forEach(b => { const k = b.split(':')[0]; blk[k] = (blk[k] || 0) + 1; }));
+  const topBlk = Object.entries(blk).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const doms = [...new Set(WX.map(x => x.r.category))].map(c => { const rs = WX.filter(x => x.r.category === c); return [c, rs.filter(x => x.v.base === 'none').length / rs.length, rs.length]; }).filter(d => d[2] >= 5).sort((a, b) => b[1] - a[1]);
+  const nrevHigh = X.filter(x => x.v.k === 'nrev' && x.v.threat).length, nsupThreat = X.filter(x => x.v.k === 'nsup' && x.v.threat).length;
+  const WR = WX.map(x => x.r), withT = WR.filter(r => (r.tests || []).length).length, nds = WR.reduce((s, r) => s + (r.tests || []).reduce((a, t) => a + t.datasets.length, 0), 0);
+  const unclearNoTest = NC.filter(x => x.v.logic.label === 'Unclear').length;
+  document.getElementById('rsfind').innerHTML = [
+    `<b>Windows relevance.</b> The rules will run on Windows, so each was first checked for Windows telemetry. <b>${f(wc('Windows'))}</b> (${pc(wc('Windows'))}) are Windows rules, ${f(wc('Cross-platform'))} are cross-platform and ${f(wc('Depends'))} are correlation rules that depend on other detections. <b>${f(wc('Not Windows'))}</b> (${pc(wc('Not Windows'))}) are not relevant to Windows: ${Object.entries(naCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `${v} ${c}`).join(', ')} (Linux, macOS, cloud, SaaS and network-device logs). The findings below cover the <b>${f(nw)}</b> Windows-relevant rules.`,
+    `<b>Sigma baseline.</b> A relevant, convertible Windows Sigma rule fully covers <b>${f(bcW('covered'))}</b> of them (${pc(bcW('covered'), nw)}) and partly covers <b>${f(bcW('partial'))}</b> (${pc(bcW('partial'), nw)}). The other <b>${f(bcW('none'))}</b> (${pc(bcW('none'), nw)}) have no usable baseline: ${f(nw - nm)} match no Sigma rule at all and ${f(weak)} only match one with low match relevance, low feasibility, no shared values or a non-Windows log source.`,
+    `<b>Where Sigma falls short, the Splunk rules mostly hold up.</b> Of the ${f(NC.length)} rules not fully covered, <b>${f(ncSup)}</b> (${pc(ncSup, NC.length)}) are practical and logical on their own, so they add detection Sigma does not have. <b>${f(NC.length - ncSup)}</b> need review because they are complex to deploy or their logic could not be confirmed.`,
+    `<b>Practical.</b> Among the rules not fully covered, ${f(pr('Ready'))} are ready to deploy, ${f(pr('Needs setup'))} need setup and ${f(pr('Complex'))} are complex. The most common blockers are ${topBlk.map(([k, v]) => `${esc(k.toLowerCase())} (${f(v)})`).join(', ')}: the cost is data onboarding, not rule logic.`,
+    `<b>Logical.</b> ${f(lg('Sound'))} of those rules have sound logic (specific conditions, scoped telemetry, ATT&amp;CK mapping and test data), ${f(lg('Plausible'))} plausible logic missing one of those, and ${f(unclearNoTest)} unclear logic where no concrete condition could be read from the search, typically lookup-, ML- or risk-based searches. Those need a manual read of the SPL.`,
+    `<b>Where the gaps are.</b> Among Windows-relevant rules, ${Math.round((doms.find(d => d[0] === 'endpoint') || ['', 0])[1] * 100)}% of endpoint rules have no Sigma baseline${doms.filter(d => d[0] !== 'endpoint').length ? `, against ${doms.filter(d => d[0] !== 'endpoint').map(([c, v, m]) => `${Math.round(v * 100)}% of the ${m} ${c} rules`).join(' and ')}` : ''}. SigmaHQ is strongest on Windows process and registry telemetry. <b>${f(nsupThreat)}</b> supported Splunk-only rules are tied to a threat actor or CVE; they are the best candidates for new Sigma rules. ${f(nrevHigh)} threat-linked rules without a baseline need review first.`,
+    `<b>Logic tests.</b> ${f(withT)} Windows-relevant rules (${pc(withT, nw)}) have a test definition from Splunk (${f(nds)} datasets in total). They are listed on each rule and in the download below, and have <b>not been run</b> here. ${f(nw - withT)} have no published dataset and need your own sample events.`,
+  ].map(x => `<li>${x}</li>`).join('');
+  const dc = {}; WX.forEach(x => { const k = dirOf(x.r.matches[0]).k; dc[k] = (dc[k] || 0) + 1; });
+  const dk = DIR_ORDER.filter(k => dc[k]);
+  document.getElementById('rsdir').innerHTML = `<div class="dist tall" style="margin-top:16px">${dk.map(k => `<span style="flex:${dc[k]};background:${DIR[k].col};cursor:pointer" data-dir="${k}" title="${DIR[k].name}: ${dc[k]} rules (${pc(dc[k], nw)})"></span>`).join('')}</div>
+    <div class="dirlist">${dk.map(k => `<button type="button" data-dir="${k}"><i style="background:${DIR[k].col}"></i><span>${DIR[k].name}</span><b>${f(dc[k])}</b><span class="small">${pc(dc[k], nw)}</span></button>`).join('')}</div>`;
+  const L3 = ['High', 'Medium', 'Low'], hc = {}; let hmax = 1;
+  M.forEach(x => { const k = x.r.A.relevance.label + '|' + x.r.A.feasibility.label; hc[k] = (hc[k] || 0) + 1; hmax = Math.max(hmax, hc[k]); });
+  document.getElementById('rsheat').innerHTML = `<span></span>${L3.map(l => `<span class="hx">Feasibility<br>${l}</span>`).join('')}` +
+    L3.map(rl => `<span class="hx hy">Match relevance<br>${rl}</span>` + L3.map(fl => { const c = hc[rl + '|' + fl] || 0;
+      return `<button type="button" data-rel="${rl}" data-fea="${fl}" title="Match relevance ${rl}, feasibility ${fl}: ${c} Windows-relevant rules (${pc(c, nm)} of matched)" style="background:color-mix(in srgb, var(--accent) ${c ? Math.round(10 + 50 * c / hmax) : 0}%, var(--track))"><b>${f(c)}</b><span>${pc(c, nm)}</span></button>`; }).join('')).join('');
+  const st = {}; WR.forEach(r => (r.tests || []).forEach(t => t.datasets.forEach(d => { const k = (d.sourcetype || '?').split(':').slice(0, 2).join(':'); st[k] = (st[k] || 0) + 1; })));
+  document.getElementById('rslt').innerHTML = `<div class="ltstats"><div><b>${f(withT)}</b><span>Windows-relevant rules with a test definition</span></div><div><b>${f(nds)}</b><span>datasets to load</span></div><div><b>${f(nw - withT)}</b><span>Windows-relevant rules without test data</span></div><div><b>0</b><span>tests run here</span></div></div>
+    <p class="small" style="margin:14px 0 6px">Most common sourcetypes to load:</p><div class="sub">${Object.entries(st).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => `<span class="chip plain">${esc(k)} · ${v}</span>`).join('')}</div>
+    <p style="margin:14px 0 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center"><button type="button" class="btn" id="ltdl">Download all logic tests (JSON)</button><button type="button" class="btn ghost" id="cmpdl">Download Splunk vs Sigma compare SPL</button></p>
+    <p class="small" style="margin:6px 0 0">The JSON has each rule's search, conditions, expected result, datasets, Sigma baseline SPL and comparison search. The SPL file has one comparison search per Windows-relevant rule with a Sigma match.</p>`;
+  document.getElementById('ltdl').addEventListener('click', downloadTests);
+  document.getElementById('cmpdl').addEventListener('click', downloadCompare);
+  if (!rsDrawn) {
+    V_ORDER.forEach(k => document.getElementById('rsv').add(new Option(VERD[k].name, k)));
+    DIR_ORDER.forEach(k => document.getElementById('rsd').add(new Option(DIR[k].name, k)));
+    document.getElementById('rsdir').addEventListener('click', e => {
+      const b = e.target.closest('[data-dir]'); if (!b) return;
+      const sel = document.getElementById('rsd'); sel.value = sel.value === b.dataset.dir ? '' : b.dataset.dir;
+      rspage = 1; drawResearchTable(); document.getElementById('rstbl').scrollIntoView({behavior: 'smooth', block: 'start'});
+    });
+    [...new Set(R.map(r => r.category))].sort().forEach(c => document.getElementById('rsc').add(new Option(c[0].toUpperCase() + c.slice(1), c)));
+    rsDrawn = true;
+  }
+  drawResearchTable();
+}
+function drawResearchTable() {
+  const q = document.getElementById('rsq').value.trim().toLowerCase(), fv = document.getElementById('rsv').value, fp = document.getElementById('rsp').value;
+  const fd = document.getElementById('rsd').value, fw = document.getElementById('rsw').value, fb = document.getElementById('rsb').value, ft = document.getElementById('rst').value, fc = document.getElementById('rsc').value;
+  const rows = R.filter(r => { const v = verdictOf(r); return (!q || r.hay.includes(q)) && (!fv || v.k === fv) && (!fp || v.prio === fp) && (!fb || v.base === fb) && (!ft || v.logic.label === ft) && (!fc || r.category === fc) && (!fw || v.win.k === fw) && (!fd || dirOf(r.matches[0]).k === fd); })
+    .sort((a, b) => P_ORDER[a.V.prio] - P_ORDER[b.V.prio] || V_ORDER.indexOf(a.V.k) - V_ORDER.indexOf(b.V.k) || (b.A ? b.A.relevance.score : 0) - (a.A ? a.A.relevance.score : 0) || a.n - b.n);
+  const pages = Math.max(1, Math.ceil(rows.length / PER)); rspage = Math.min(Math.max(1, rspage), pages);
+  const from = (rspage - 1) * PER;
+  document.getElementById('rstbl').innerHTML = `<thead><tr><th>#</th><th>Detection</th><th>Windows</th><th>Coverage direction</th><th>Sigma baseline</th><th>Practical</th><th>Logic</th><th>Logic test</th><th>Verdict</th><th>Priority</th></tr></thead><tbody>` +
+    rows.slice(from, from + PER).map(r => { const v = r.V, V = VERD[v.k], nt = (r.tests || []).reduce((a, t) => a + t.datasets.length, 0);
+      return `<tr data-rule="${r._i}" tabindex="0">
+      <td class="num">${String(r.n).padStart(4, '0')}</td>
+      <td><b>${esc(r.name)}</b><div class="small">${esc(r.type)} · ${esc(r.category)}${(r.actors || []).length + (r.cves || []).length ? ' · threat-linked' : ''}</div></td>
+      <td><span class="lab ${WIN[v.win.k][1]}">${WIN[v.win.k][0]}</span></td>
+      <td>${(d => `<span class="lab ${DIR[d.k].cls}">${DIR[d.k].name}</span>${d.k !== 'na' ? `<div class="small" style="margin-top:4px">Sigma→Splunk ${d.a}%<br>Splunk→Sigma ${d.b}%</div>` : ''}`)(dirOf(r.matches[0]))}</td>
+      <td><span class="lab ${BASE[v.base][1]}">${BASE[v.base][0]}</span><div class="small" style="margin-top:4px">${r.A ? `${esc(r.matches[0].title)} · ${r.covPct}%` : 'No Sigma match'}</div></td>
+      <td><span class="lab ${PRAC[v.prac][1]}">${PRAC[v.prac][0]}</span></td>
+      <td><span class="lab ${LOGIC_CLS[v.logic.label]}">${v.logic.label}</span></td>
+      <td class="small">${nt ? `${nt} dataset${nt > 1 ? 's' : ''} · not run` : 'No test data'}</td>
+      <td><span class="lab ${V.cls}">${V.name}</span><div class="small" style="margin-top:4px;max-width:320px">${esc(v.why)}</div></td>
+      <td><b>${v.prio}</b></td></tr>`; }).join('') + '</tbody>';
+  document.getElementById('rscount').textContent = rows.length ? `${(from + 1).toLocaleString()}–${Math.min(from + PER, rows.length).toLocaleString()} of ${rows.length.toLocaleString()}` : '0 rules';
+  document.getElementById('rspager').innerHTML = pagerHTML(rspage, pages);
+  document.querySelectorAll('#rsverd .rv').forEach(b => b.classList.toggle('on', b.dataset.v === fv));
+}
+['rsq', 'rsv', 'rsp', 'rsw', 'rsd', 'rsb', 'rst', 'rsc'].forEach(id => document.getElementById(id).addEventListener('input', () => { rspage = 1; drawResearchTable(); }));
+document.getElementById('rspager').addEventListener('click', e => { const b = e.target.closest('button[data-p]'); if (b && !b.disabled) { rspage = +b.dataset.p; drawResearchTable(); document.getElementById('rstbl').scrollIntoView({block: 'start'}); } });
+document.getElementById('rstbl').addEventListener('click', rowOpen);
+document.getElementById('rstbl').addEventListener('keydown', rowOpen);
+document.getElementById('rsverd').addEventListener('click', e => {
+  const b = e.target.closest('.rv'); if (!b) return;
+  const sel = document.getElementById('rsv'); sel.value = sel.value === b.dataset.v ? '' : b.dataset.v; rspage = 1; drawResearchTable();
+  document.getElementById('rstbl').scrollIntoView({behavior: 'smooth', block: 'start'});
+});
+document.getElementById('rsheat').addEventListener('click', e => {
+  const b = e.target.closest('button[data-rel]'); if (!b) return;
+  resetMapFilters(); document.getElementById('frel').value = b.dataset.rel; document.getElementById('ffea').value = b.dataset.fea; render(); go('map');
+});
+
+// ---------- Settings ----------
+const store = {get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }};
+function applyTheme(t) {
+  if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); else document.documentElement.removeAttribute('data-theme');
+  document.querySelectorAll('#themeSeg button').forEach(b => b.classList.toggle('on', b.dataset.t === (t || 'system')));
+}
+applyTheme(store.get('tl-theme') || 'system');
+document.getElementById('themeSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; store.set('tl-theme', b.dataset.t); applyTheme(b.dataset.t); });
+document.getElementById('themeBtn').addEventListener('click', () => {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark' || (!document.documentElement.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+  const t = dark ? 'light' : 'dark'; store.set('tl-theme', t); applyTheme(t);
+});
+function applyPer(n) { PER = n; document.querySelectorAll('#perSeg button').forEach(b => b.classList.toggle('on', +b.dataset.n === n)); }
+applyPer(+(store.get('tl-per') || 50) || 50);
+document.getElementById('perSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; store.set('tl-per', b.dataset.n); applyPer(+b.dataset.n); page = 1; dpage = 1; spage = 1; rspage = 1; drawPage(); });
+
+drawCovTiles(); drawTechMap();
+drawTabs(); drawChart(); render();
+go(location.hash.slice(1) || 'coverage');
+
+
+list.addEventListener('click', e => {
+  const lc = e.target.closest('.ltcopy');
+  if (lc) { navigator.clipboard.writeText(JSON.stringify(testSpec(R[+lc.dataset.rule]), null, 1)).then(() => { lc.textContent = 'Copied'; setTimeout(() => lc.textContent = 'Copy test definition (JSON)', 1500); }).catch(() => { lc.textContent = 'Copy failed'; }); return; }
+  const b = e.target.closest('.copy'); if (!b) return;
+  const pre = b.nextElementSibling;
+  navigator.clipboard.writeText(pre.textContent).then(() => { b.textContent = 'Copied'; setTimeout(() => b.textContent = 'Copy', 1500); })
+    .catch(() => { const s = getSelection(), rg = document.createRange(); rg.selectNodeContents(pre); s.removeAllRanges(); s.addRange(rg); b.textContent = 'Press Ctrl+C'; });
+});
+}
+</script>
+</body>
+</html>
